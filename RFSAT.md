@@ -66,9 +66,9 @@ Check host, port and mount point names against your Metrica and EUREF licence sh
 
 1. Download the firmware `.bin` from the GitHub Actions run (Actions → *RFSAT build* → artifact).
 2. Flash it with the [SparkFun RTK Firmware Uploader](https://github.com/sparkfun/SparkFun_RTK_Firmware_Uploader): select the COM port and the `.bin`, then press **Upload Firmware**. The uploader writes the bootloader and partitions itself.
-   - Alternatively, use esptool with the four binaries from the artifact:
+   - Alternatively, use esptool with the single merged image (bootloader, partitions and app at offset 0x0):
      ```
-     esptool.py --chip esp32 --baud 921600 write_flash 0x1000 RTK_Everywhere.ino.bootloader.bin 0x8000 RTK_Everywhere.ino.partitions.bin 0x10000 RFSAT_v3_4_<commit>.bin
+     esptool.py --chip esp32 --baud 921600 write_flash 0x0 RFSAT_v3_4_afffebb_merged_0x0.bin
      ```
 3. The first boot after flashing resets the settings to defaults, because the settings layout changed. Configure the rover again with the configurator.
 
