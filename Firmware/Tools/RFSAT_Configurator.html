@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>RFSAT Rover Configurator</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Archivo+Narrow:wght@600;700&display=swap">
+<style>
+/* Layout: one narrow column of numbered-by-priority source panels, a sticky command console at the side on wide screens */
+:root{
+  --bg:#eef1f2; --panel:#ffffff; --ink:#15211f; --muted:#5b6a68; --line:#d3dbda;
+  --accent:#0b6e5f; --accent-ink:#ffffff; --warn:#a15c00; --ok:#1d7a3a; --err:#b3261e; --console:#0f1a19; --console-ink:#cfe9e2;
+  --display:"Archivo Narrow","Arial Narrow",sans-serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1514; --panel:#16201f; --ink:#e3ecea; --muted:#93a5a2; --line:#2a3836;
+  --accent:#3fbfa6; --accent-ink:#06201b; --warn:#e3a54a; --ok:#5cc97b; --err:#ff8a80; --console:#081110; --console-ink:#bfe6dc; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1514; --panel:#16201f; --ink:#e3ecea; --muted:#93a5a2; --line:#2a3836;
+  --accent:#3fbfa6; --accent-ink:#06201b; --warn:#e3a54a; --ok:#5cc97b; --err:#ff8a80; --console:#081110; --console-ink:#bfe6dc; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--body);padding-block:24px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,440px);gap:24px;align-items:start}
+@media (max-width:900px){.wrap{grid-template-columns:minmax(0,1fr)}}
+header{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px 24px;align-items:baseline;border-bottom:2px solid var(--ink);padding-bottom:12px}
+h1{font:700 30px/1.1 var(--display);letter-spacing:.01em;margin:0;text-wrap:balance}
+header p{margin:0;color:var(--muted);max-width:62ch}
+.col{display:flex;flex-direction:column;gap:16px;min-width:0}
+section{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px}
+section h2{font:600 18px/1.2 var(--display);letter-spacing:.02em;margin:0 0 4px;display:flex;gap:10px;align-items:center}
+section > p.hint{margin:0 0 12px;color:var(--muted);font-size:13px}
+.prio{font:500 12px var(--mono);background:var(--ink);color:var(--bg);border-radius:3px;padding:1px 6px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px 12px}
+.grid .wide{grid-column:1/-1}
+label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);letter-spacing:.03em;text-transform:uppercase;min-width:0}
+input,select{font:400 14px var(--mono);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:7px 8px;width:100%;text-transform:none;letter-spacing:0}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.check{flex-direction:row;align-items:center;gap:8px;text-transform:none;font-size:14px;color:var(--ink);letter-spacing:0}
+.check input{width:auto}
+.presets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+button{font:500 13px var(--body);border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:4px;padding:6px 10px;cursor:pointer}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button:disabled{opacity:.5;cursor:default}
+.console{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);display:flex;flex-direction:column;gap:10px;min-width:0}
+.console section{display:flex;flex-direction:column;gap:10px}
+pre{margin:0;background:var(--console);color:var(--console-ink);font:12.5px/1.55 var(--mono);padding:12px;border-radius:4px;overflow:auto;max-height:46vh;white-space:pre}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.status{font:12px var(--mono);color:var(--muted)}
+.status.ok{color:var(--ok)} .status.err{color:var(--err)} .status.warn{color:var(--warn)}
+.note{font-size:13px;color:var(--muted);margin:0}
+.badge{font:500 11px var(--mono);border:1px solid var(--line);border-radius:3px;padding:0 5px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>RFSAT Rover Configurator</h1>
+    <p>Builds the <code>$SPSET</code> command set for the RTK Everywhere RFSAT firmware: Wi-Fi networks, up to four NTRIP correction sources in priority order, Bluetooth and Galileo HAS fallback. Send it over USB from Chrome, or paste it into a Bluetooth terminal.</p>
+  </header>
+
+  <div class="col">
+    <section>
+      <h2>Wi-Fi networks</h2>
+      <p class="hint">Tried in order. Up to four. Leave unused rows empty.</p>
+      <div class="grid" id="wifi"></div>
+    </section>
+
+    <section>
+      <h2>Correction sources</h2>
+      <p class="hint">Source 1 has priority. On a failure (no connection, no response, rejected login or mount point, or 30 s without RTCM) the rover moves to the next source in about 2 s. Keep sources within 2–4 km of the work area for sub-centimetre fixes.</p>
+      <div class="grid">
+        <label class="check"><input type="checkbox" id="failover" checked> Failover between sources</label>
+        <label class="check"><input type="checkbox" id="gga" checked> Send GGA position (needed for VRS)</label>
+        <label>Return to source 1 after (s, 0 = never)<input type="number" id="failback" value="600" min="0" max="65535"></label>
+      </div>
+    </section>
+
+    <div id="sources" class="col"></div>
+
+    <section>
+      <h2>Receiver and Bluetooth</h2>
+      <div class="grid">
+        <label>Without internet<select id="ppp"><option value="2" selected>Galileo HAS (~20 cm)</option><option value="0">Standalone only</option></select></label>
+        <label>Bluetooth<select id="bt"><option value="2" selected>Classic SPP + BLE</option><option value="0">Classic SPP only (Android)</option><option value="1">BLE only (iOS)</option></select></label>
+      </div>
+    </section>
+
+    <section>
+      <h2>Profile file</h2>
+      <p class="hint">Save the form as JSON to reuse it on the next unit. Passwords are included, so keep the file private. Nothing is stored in the browser.</p>
+      <div class="row">
+        <button id="export">Show profile JSON</button>
+        <label class="check" style="text-transform:none">Load profile JSON <input type="file" id="import" accept=".json,application/json"></label>
+      </div>
+    </section>
+  </div>
+
+  <div class="console">
+    <section>
+      <h2>Commands <span class="badge" id="count"></span></h2>
+      <pre id="out" aria-label="Generated commands"></pre>
+      <div class="row">
+        <button id="copy">Copy commands</button>
+        <button class="primary" id="connect">Connect USB</button>
+        <button id="send" disabled>Send to rover</button>
+        <span class="status" id="status"></span>
+      </div>
+      <p class="note">Bluetooth terminal: send <code>----------</code> (10 dashes) first to enter command mode, then paste the commands. USB: Chrome or Edge on a computer, with this file opened locally.</p>
+      <pre id="log" aria-label="Rover replies" hidden></pre>
+    </section>
+  </div>
+</div>
+
+<script>
+const SRC_N = 4;
+const PRESETS = {
+  "Own base": {host:"", port:2101, mount:"", user:"", pw:""},
+  "Metrica VRS": {host:"gr.nrtk.eu", port:7801, mount:"MSM_VRS", user:"", pw:""},
+  "Metrica nearest": {host:"gr.nrtk.eu", port:7801, mount:"MSM_NEAR", user:"", pw:""},
+  "EUREF": {host:"euref-ip.net", port:2101, mount:"", user:"", pw:""}
+};
+const DEFAULT_ORDER = ["Own base","Metrica VRS","Metrica nearest","EUREF"];
+const $ = id => document.getElementById(id);
+
+function buildWifi(){
+  let h = "";
+  for (let i=0;i<4;i++) h += `<label>Network ${i+1} SSID<input id="ssid${i}" autocomplete="off"></label><label>Password<input id="wpw${i}" type="password" autocomplete="new-password"></label>`;
+  $("wifi").innerHTML = h;
+}
+function buildSources(){
+  let h = "";
+  for (let i=0;i<SRC_N;i++){
+    const p = PRESETS[DEFAULT_ORDER[i]];
+    h += `<section><h2><span class="prio">${i+1}</span> ${i==0?"Primary source":"Alternate source"}</h2>
+      <div class="presets">${Object.keys(PRESETS).map(k=>`<button type="button" data-src="${i}" data-preset="${k}">${k}</button>`).join("")}<button type="button" data-src="${i}" data-preset="">Clear</button></div>
+      <div class="grid">
+        <label class="wide">Caster host<input id="host${i}" value="${p.host}" placeholder="caster.example.com" autocomplete="off"></label>
+        <label>Port<input id="port${i}" type="number" value="${p.port}" min="1" max="65535"></label>
+        <label>Mount point<input id="mount${i}" value="${p.mount}" autocomplete="off"></label>
+        <label>User<input id="user${i}" autocomplete="off"></label>
+        <label>Password<input id="pw${i}" type="password" autocomplete="new-password"></label>
+      </div></section>`;
+  }
+  $("sources").innerHTML = h;
+}
+
+function cks(body){ let c=0; for (const ch of body) c ^= ch.charCodeAt(0); return c.toString(16).toUpperCase().padStart(2,"0"); }
+function q(s){ return '"' + String(s).replace(/\\/g,"\\\\").replace(/"/g,'\\"') + '"'; }
+function cmd(name,val){ const b = `SPSET,${name},${val}`; return `$${b}*${cks(b)}`; }
+function exe(a){ const b = `SPEXE,${a}`; return `$${b}*${cks(b)}`; }
+
+const PREFIX = ["ntripClient","ntripClientAlt1","ntripClientAlt2","ntripClientAlt3"];
+function commands(){
+  const L = [], warn = [];
+  for (let i=0;i<4;i++){
+    const s=$("ssid"+i).value.trim(), p=$("wpw"+i).value;
+    L.push(cmd(`wifiNetwork_${i}SSID`, q(s)), cmd(`wifiNetwork_${i}Password`, q(s?p:"")));
+  }
+  let valid=0;
+  for (let i=0;i<SRC_N;i++){
+    const host=$("host"+i).value.trim(), port=parseInt($("port"+i).value)||0, mount=$("mount"+i).value.trim();
+    const user=$("user"+i).value.trim(), pw=$("pw"+i).value;
+    if (host && (!mount || !port)) warn.push(`Source ${i+1}: host set but mount point or port missing, it will be skipped.`);
+    if (host && mount && port) valid++;
+    L.push(cmd(`${PREFIX[i]}CasterHost`, q(host)), cmd(`${PREFIX[i]}CasterPort`, host?port:2101),
+           cmd(`${PREFIX[i]}CasterUser`, q(user)), cmd(`${PREFIX[i]}CasterUserPW`, q(pw)), cmd(`${PREFIX[i]}MountPoint`, q(mount)));
+  }
+  if (!valid) warn.push("No complete correction source yet: fill host, port and mount point.");
+  L.push(cmd("enableNtripClient", valid? "true":"false"), cmd("ntripClientTransmitGGA", $("gga").checked), cmd("ntripClientFailover", $("failover").checked),
+         cmd("ntripClientFailbackInterval", Math.max(0,Math.min(65535,parseInt($("failback").value)||0))),
+         cmd("pppMode", $("ppp").value), cmd("bluetoothRadioType", $("bt").value), exe("SAVE"), exe("APPLY"));
+  return {L, warn, valid};
+}
+function render(){
+  const {L,warn} = commands();
+  $("out").textContent = (warn.length? warn.map(w=>"# "+w).join("\n")+"\n":"") + L.join("\n");
+  $("count").textContent = L.length + " lines";
+}
+
+function formState(){ const o={}; document.querySelectorAll("input:not([type=file]),select").forEach(e=>o[e.id]= e.type=="checkbox"? e.checked : e.value); return o; }
+function setForm(o){ for (const k in o){ const e=$(k); if(!e) continue; if(e.type=="checkbox") e.checked=!!o[k]; else e.value=o[k]; } render(); }
+
+document.addEventListener("click", e=>{
+  const b = e.target.closest("button[data-src]"); if(!b) return;
+  const i=b.dataset.src, p = PRESETS[b.dataset.preset] || {host:"",port:2101,mount:"",user:"",pw:""};
+  $("host"+i).value=p.host; $("port"+i).value=p.port; $("mount"+i).value=p.mount; render();
+});
+document.addEventListener("input", render);
+document.addEventListener("change", render);
+
+$("copy").onclick = async () => {
+  const t = commands().L.join("\r\n") + "\r\n";
+  try { await navigator.clipboard.writeText(t); status("Copied","ok"); }
+  catch { const r=document.createRange(); r.selectNodeContents($("out")); const s=getSelection(); s.removeAllRanges(); s.addRange(r); status("Selected: press Ctrl+C","warn"); }
+};
+$("export").onclick = () => { $("log").hidden=false; $("log").textContent = JSON.stringify(formState(), null, 2); };
+$("import").onchange = ev => { const f=ev.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ try{ setForm(JSON.parse(r.result)); status("Profile loaded","ok"); }catch{ status("That file is not a profile JSON","err"); } }; r.readAsText(f); };
+
+function status(t,c){ const s=$("status"); s.textContent=t; s.className="status "+(c||""); }
+
+// Web Serial (USB) transport
+let port=null, writer=null;
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+$("connect").onclick = async () => {
+  if (!("serial" in navigator)) { status("USB needs Chrome or Edge with this file opened locally","err"); return; }
+  try {
+    port = await navigator.serial.requestPort();
+    await port.open({ baudRate: 115200 });
+    writer = port.writable.getWriter();
+    readLoop();
+    $("send").disabled=false; status("Connected","ok");
+  } catch(e){ status("Not connected: " + e.message,"err"); }
+};
+async function readLoop(){
+  const dec = new TextDecoder(); $("log").hidden=false; $("log").textContent="";
+  try { const rd = port.readable.getReader();
+    for(;;){ const {value,done} = await rd.read(); if(done) break; const log=$("log"); log.textContent = (log.textContent + dec.decode(value)).slice(-20000); log.scrollTop = log.scrollHeight; }
+  } catch(e){ status("Link closed","warn"); }
+}
+async function tx(s){ await writer.write(new TextEncoder().encode(s)); }
+$("send").onclick = async () => {
+  const {L, valid} = commands();
+  if (!valid) { status("Add at least one complete correction source first","err"); return; }
+  $("send").disabled=true;
+  try {
+    status("Opening command mode…");
+    await tx("\r"); await sleep(600); await tx("+"); await sleep(800);
+    for (let i=0;i<L.length;i++){ status(`Sending ${i+1}/${L.length}`); await tx(L[i] + "\r\n"); await sleep(120); }
+    status("Sent. The rover saves and applies, and may reboot.","ok");
+  } catch(e){ status("Send failed: "+e.message,"err"); }
+  $("send").disabled=false;
+};
+
+buildWifi(); buildSources(); render();
+</script>
+
+</body>
+</html>

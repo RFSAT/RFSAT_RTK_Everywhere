@@ -216,7 +216,7 @@ bool ntripClientConnect()
 
     // Remove any http:// or https:// prefix from host name
     char hostname[51];
-    strncpy(hostname, settings.ntripClient_CasterHost,
+    strncpy(hostname, ntripSrc()->host,
             sizeof(hostname) - 1); // strtok modifies string to be parsed so we create a copy
     char *preservedPointer;
     char *token = strtok_r(hostname, "//", &preservedPointer);
@@ -224,21 +224,21 @@ bool ntripClientConnect()
     {
         token = strtok_r(nullptr, "//", &preservedPointer); // Advance to data after //
         if (token != nullptr)
-            strcpy(settings.ntripClient_CasterHost, token);
+            strlcpy(ntripSrc()->host, token, 50);
     }
 
     if (settings.debugNtripClientState)
-        systemPrintf("NTRIP Client connecting to %s:%d\r\n", settings.ntripClient_CasterHost,
-                     settings.ntripClient_CasterPort);
+        systemPrintf("NTRIP Client connecting to %s:%d\r\n", ntripSrc()->host,
+                     *ntripSrc()->port);
 
-    int connectResponse = ntripClient->connect(settings.ntripClient_CasterHost, settings.ntripClient_CasterPort,
+    int connectResponse = ntripClient->connect(ntripSrc()->host, *ntripSrc()->port,
                                                NTRIP_CLIENT_RESPONSE_TIMEOUT);
 
     if (connectResponse < 1)
     {
         if (settings.debugNtripClientState)
-            systemPrintf("NTRIP Client connection to NTRIP caster %s:%d failed\r\n", settings.ntripClient_CasterHost,
-                         settings.ntripClient_CasterPort);
+            systemPrintf("NTRIP Client connection to NTRIP caster %s:%d failed\r\n", ntripSrc()->host,
+                         *ntripSrc()->port);
         return false;
     }
 
@@ -246,7 +246,7 @@ bool ntripClientConnect()
     char serverRequest[SERVER_BUFFER_SIZE];
     int length;
     snprintf(serverRequest, SERVER_BUFFER_SIZE, "GET /%s HTTP/1.0\r\nUser-Agent: NTRIP %s_",
-             settings.ntripClient_MountPoint, deviceName);
+             ntripSrc()->mount, deviceName);
     length = strlen(serverRequest);
     espFirmwareVersionGet(&serverRequest[length], SERVER_BUFFER_SIZE - 2 - length, false);
     length = strlen(serverRequest);
@@ -256,17 +256,17 @@ bool ntripClientConnect()
 
     // Set up the credentials
     char credentials[CREDENTIALS_BUFFER_SIZE];
-    if (strlen(settings.ntripClient_CasterUser) == 0)
+    if (strlen(ntripSrc()->user) == 0)
     {
         strncpy(credentials, "Accept: */*\r\nConnection: close\r\n", sizeof(credentials) - 1);
     }
     else
     {
         // Pass base64 encoded user:pw
-        char userCredentials[sizeof(settings.ntripClient_CasterUser) + sizeof(settings.ntripClient_CasterUserPW) +
+        char userCredentials[50 + 50 +
                              1]; // The ':' takes up a spot
-        snprintf(userCredentials, sizeof(userCredentials), "%s:%s", settings.ntripClient_CasterUser,
-                 settings.ntripClient_CasterUserPW);
+        snprintf(userCredentials, sizeof(userCredentials), "%s:%s", ntripSrc()->user,
+                 ntripSrc()->userPw);
 
         if (settings.debugNtripClientState)
         {
@@ -355,6 +355,51 @@ bool ntripClientConnectLimitReached()
 }
 
 //----------------------------------------
+// RFSAT: reconnect quickly to the newly selected correction source
+//----------------------------------------
+void ntripClientQuickRetry()
+{
+    if (ntripClientState == NTRIP_CLIENT_CONNECTED)
+        ntripClientStartTime = ntripClientTimer - ntripClientStartTime;
+    ntripClientStop(false);
+    ntripClientTimer = millis();
+    ntripClientConnectionAttemptTimeout = NTRIP_FAILOVER_RETRY_MSEC;
+    ntripClientConnectionAttemptsTotal++;
+}
+
+//----------------------------------------
+// RFSAT: soft failure of the active source (connect, response, data timeout, broken link)
+// Returns true when the normal back-off limit was reached
+//----------------------------------------
+bool ntripClientSourceSoftFailure(const char *reason)
+{
+    NTRIP_FAILOVER_RESULT result = ntripSourceFailover(false, reason);
+    if (result == NTRIP_FAILOVER_SWITCHED)
+    {
+        ntripClientQuickRetry();
+        return false;
+    }
+    // Single source, or a full cycle failed: original back-off
+    if (ntripClientState == NTRIP_CLIENT_CONNECTED)
+        ntripClientStartTime = ntripClientTimer - ntripClientStartTime;
+    return ntripClientConnectLimitReached();
+}
+
+//----------------------------------------
+// RFSAT: hard failure of the active source (401, unknown mount point, caster error)
+//----------------------------------------
+void ntripClientSourceHardFailure(const char *reason)
+{
+    NTRIP_FAILOVER_RESULT result = ntripSourceFailover(true, reason);
+    if (result == NTRIP_FAILOVER_SWITCHED)
+        ntripClientQuickRetry();
+    else if (result == NTRIP_FAILOVER_BACKOFF)
+        ntripClientConnectLimitReached();
+    else
+        ntripClientForceShutdown(); // Original behaviour
+}
+
+//----------------------------------------
 // Determine if the NTRIP client may be enabled
 //----------------------------------------
 bool ntripClientEnabled(const char **line)
@@ -374,8 +419,8 @@ bool ntripClientEnabled(const char **line)
         }
 
         // Verify that the parameters were specified
-        if ((settings.ntripClient_CasterHost[0] == 0) || (settings.ntripClient_CasterPort == 0) ||
-            (settings.ntripClient_MountPoint[0] == 0))
+        // RFSAT: any configured source (primary or alternate) enables the client
+        if (ntripSourceValidCount() == 0)
         {
             if (line)
             {
@@ -469,8 +514,8 @@ void ntripClientPrintStatus()
     {
         systemPrint("NTRIP Client ");
         ntripClientPrintStateSummary();
-        systemPrintf(" - %s/%s:%d", settings.ntripClient_CasterHost, settings.ntripClient_MountPoint,
-                     settings.ntripClient_CasterPort);
+        systemPrintf(" - %s/%s:%d", ntripSrc()->host, ntripSrc()->mount,
+                     *ntripSrc()->port);
 
         if (ntripClientState == NTRIP_CLIENT_CONNECTED)
             // Use ntripClientTimer since it gets reset after each successful data
@@ -498,6 +543,7 @@ void ntripClientPrintStatus()
         systemPrint(" Uptime: ");
         systemPrintf("%d %02d:%02d:%02d.%03lld (Reconnects: %d)\r\n", days, hours, minutes, seconds, milliseconds,
                      ntripClientConnectionAttemptsTotal);
+        ntripSourcePrintStatus(); // RFSAT: list of correction sources
     }
 }
 
@@ -598,6 +644,7 @@ void ntripClientSetState(uint8_t newState)
 void ntripClientSettingsChanged()
 {
     ntripClientSettingsHaveChanged = true;
+    ntripSourceReset(true); // RFSAT: re-enable all sources, restart from the highest priority
 }
 
 //----------------------------------------
@@ -741,7 +788,7 @@ void ntripClientUpdate()
                 if (!ntripClientConnect())
                 {
                     // Assume service not available
-                    if (ntripClientConnectLimitReached()) // Updates ntripClientConnectionAttemptTimeout
+                    if (ntripClientSourceSoftFailure("connect failed")) // Updates ntripClientConnectionAttemptTimeout
                         systemPrintln(
                             "NTRIP caster failed to connect. Do you have your caster address and port correct?");
                 }
@@ -750,7 +797,7 @@ void ntripClientUpdate()
                     // Socket opened to NTRIP system
                     if (settings.debugNtripClientState)
                         systemPrintf("NTRIP Client waiting for response from %s:%d\r\n",
-                                     settings.ntripClient_CasterHost, settings.ntripClient_CasterPort);
+                                     ntripSrc()->host, *ntripSrc()->port);
                     ntripClientSetState(NTRIP_CLIENT_WAIT_RESPONSE);
                 }
             }
@@ -765,7 +812,7 @@ void ntripClientUpdate()
             if ((millis() - ntripClientTimer) > NTRIP_CLIENT_RESPONSE_TIMEOUT)
             {
                 // NTRIP web service did not respond
-                if (ntripClientConnectLimitReached()) // Updates ntripClientConnectionAttemptTimeout
+                if (ntripClientSourceSoftFailure("no response")) // Updates ntripClientConnectionAttemptTimeout
                     systemPrintln("NTRIP Caster failed to respond. Do you have your caster address and port correct?");
             }
         }
@@ -795,25 +842,23 @@ void ntripClientUpdate()
                     systemPrintf("NTRIP Client connected to caster but caster responded with banned error: %s\r\n",
                                  response);
 
-                    ntripClientConnectLimitReached(); // Re-attempted after a period of time. Shuts down NTRIP Client if
-                                                      // limit reached.
+                    ntripClientSourceSoftFailure("banned"); // Re-attempted after a period of time
                 }
                 else if (strcasestr(response, "sandbox") != nullptr)
                 {
                     systemPrintf("NTRIP Client connected to caster but caster responded with sandbox error: %s\r\n",
                                  response);
 
-                    ntripClientConnectLimitReached(); // Re-attempted after a period of time. Shuts down NTRIP Client if
-                                                      // limit reached.
+                    ntripClientSourceSoftFailure("sandbox"); // Re-attempted after a period of time
                 }
                 else if (strcasestr(response, "SOURCETABLE") != nullptr)
                 {
                     systemPrintf("Caster may not have mountpoint %s. Caster responded with problem: %s\r\n",
-                                 settings.ntripClient_MountPoint, response);
-                    systemPrintln("ntripClient shutdown. Please update the mountpoint and reconnect");
+                                 ntripSrc()->mount, response);
+                    systemPrintln("Please update the mountpoint and reconnect");
 
-                    // Stop NTRIP client operations
-                    ntripClientForceShutdown();
+                    // Try the next source, else stop NTRIP client operations
+                    ntripClientSourceHardFailure("unknown mount point");
                 }
                 else
                 {
@@ -831,13 +876,13 @@ void ntripClientUpdate()
                         minutes = seconds / SECONDS_IN_A_MINUTE;
                         seconds -= minutes * SECONDS_IN_A_MINUTE;
                         systemPrintf("NTRIP Client connected to %s:%d via %s:%d at %d:%02d:%02d\r\n",
-                                     settings.ntripClient_CasterHost, settings.ntripClient_CasterPort,
+                                     ntripSrc()->host, *ntripSrc()->port,
                                      ntripClient->localIP().toString().c_str(), ntripClient->localPort(), hours,
                                      minutes, seconds);
                     }
                     else
-                        systemPrintf("NTRIP Client connected to %s:%d\r\n", settings.ntripClient_CasterHost,
-                                     settings.ntripClient_CasterPort);
+                        systemPrintf("NTRIP Client connected to %s:%d\r\n", ntripSrc()->host,
+                                     *ntripSrc()->port);
 
                     // Connection is now open, start the NTRIP receive data timer
                     ntripClientTimer = millis();
@@ -855,6 +900,7 @@ void ntripClientUpdate()
                     ntripClientStartTime = millis();
                     ntripClient->setConnectionTimeout(NTRIP_CLIENT_RECEIVE_DATA_TIMEOUT);
                     ntripClientSetState(NTRIP_CLIENT_CONNECTED);
+                    ntripSourceConnected(); // RFSAT failover bookkeeping
                 }
             }
             else if (strstr(response, "401") != nullptr)
@@ -879,16 +925,16 @@ void ntripClientUpdate()
                         response);
                 }
 
-                // Stop NTRIP client operations
-                ntripClientForceShutdown();
+                // Try the next source, else stop NTRIP client operations
+                ntripClientSourceHardFailure("unauthorized");
             }
             // Other errors returned by the caster
             else
             {
                 systemPrintf("NTRIP Client connected but caster responded with problem: %s\r\n", response);
 
-                // Stop NTRIP client operations
-                ntripClientForceShutdown();
+                // Try the next source, else stop NTRIP client operations
+                ntripClientSourceHardFailure("caster error");
             }
             rtkFree(response, "ntripClientResponse");
         }
@@ -900,7 +946,7 @@ void ntripClientUpdate()
         {
             // Broken connection, retry the NTRIP client connection
             systemPrintln("NTRIP Client connection to caster was broken");
-            ntripClientRestart();
+            ntripClientSourceSoftFailure("connection broken");
         }
         else
         {
@@ -924,7 +970,15 @@ void ntripClientUpdate()
             if(ntripClientSettingsHaveChanged == true)
             {
                 ntripClientSettingsHaveChanged = false;
+                ntripSourceReset(true); // RFSAT: start again from the highest priority source
                 ntripClientRestart();
+            }
+            // RFSAT: periodically return to the highest priority source
+            else if (ntripSourceFailbackDue())
+            {
+                systemPrintln("NTRIP Client returning to the highest priority correction source");
+                ntripSourceReset(false);
+                ntripClientQuickRetry();
             }
             // Check for timeout receiving NTRIP data
             else if (ntripClientReceiveDataAvailable() == 0)
@@ -949,7 +1003,7 @@ void ntripClientUpdate()
                     }
                     else
                         systemPrintln("NTRIP Client timeout receiving data");
-                    ntripClientRestart();
+                    ntripClientSourceSoftFailure("no RTCM data");
                 }
             }
             else

@@ -1,0 +1,62 @@
+name: RFSAT build (RTK Postcard / ESP32)
+
+# Builds the RFSAT fork of RTK Everywhere with the pinned ESP32 core and
+# libraries (same Dockerfile as upstream, no SparkFun secrets needed) and
+# uploads the firmware as a workflow artifact.
+
+on:
+  push:
+    branches: [ "rfsat/**", "main" ]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CORE_VERSION: 3.0.7
+  FIRMWARE_VERSION_MAJOR: 3
+  FIRMWARE_VERSION_MINOR: 4
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Failover unit test (host)
+        run: |
+          cd Firmware/Tools
+          g++ -std=c++17 -o /tmp/ft rfsat_failover_test.cpp && /tmp/ft
+
+      - name: Version tag
+        run: echo "TAG=RFSAT_v${FIRMWARE_VERSION_MAJOR}_${FIRMWARE_VERSION_MINOR}_$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+      - name: Build in Docker
+        run: |
+          cd Firmware
+          docker build -t rfsat_rtk --target deployment \
+            --build-arg CORE_VERSION=${CORE_VERSION} \
+            --build-arg FIRMWARE_VERSION_MAJOR=${FIRMWARE_VERSION_MAJOR} \
+            --build-arg FIRMWARE_VERSION_MINOR=${FIRMWARE_VERSION_MINOR} \
+            --build-arg ENABLE_DEVELOPER=true \
+            --build-arg DEBUG_LEVEL=error \
+            .
+          docker create --name=rfsat rfsat_rtk:latest
+          mkdir -p build
+          docker cp rfsat:/RTK_Everywhere/build/esp32.esp32.esp32/. ./build/
+          docker rm rfsat
+          ls -la build
+
+      - name: Rename
+        run: |
+          cd Firmware/build
+          mv RTK_Everywhere.ino.bin ${TAG}.bin
+          mv RTK_Everywhere.ino.elf ${TAG}.elf
+          [ -f RTK_Everywhere.ino.merged.bin ] && mv RTK_Everywhere.ino.merged.bin ${TAG}_merged.bin || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.TAG }}
+          path: |
+            Firmware/build/${{ env.TAG }}*.bin
+            Firmware/build/${{ env.TAG }}.elf
+            Firmware/build/RTK_Everywhere.ino.bootloader.bin
+            Firmware/build/RTK_Everywhere.ino.partitions.bin

@@ -1257,6 +1257,18 @@ function validateFields() {
         checkElementValue("ntripClientCasterPort", 1, 99999, "Must be 1 to 99999", "collapseGNSSConfig");
         checkElementString("ntripClientMountPoint", 1, 30, "Must be 1 to 30 characters", "collapseGNSSConfig");
         checkElementCasterUser("ntripClientCasterHost", "ntripClientCasterUser", "rtk2go.com", "User must use their email address", "collapseGNSSConfig");
+        // RFSAT: correction source failover
+        checkElementValue("ntripClientFailbackInterval", 0, 65535, "Must be 0 (never) to 65535", "collapseGNSSConfig");
+        for (let n = 1; n <= 3; n++) {
+            var altHost = "ntripClientAlt" + n + "CasterHost";
+            checkElementString(altHost, 0, 45, "Must be 0 to 45 characters", "collapseGNSSConfig");
+            if (ge(altHost).value.length > 0) {
+                checkElementValue("ntripClientAlt" + n + "CasterPort", 1, 65535, "Must be 1 to 65535", "collapseGNSSConfig");
+                checkElementString("ntripClientAlt" + n + "MountPoint", 1, 45, "Must be 1 to 45 characters", "collapseGNSSConfig");
+            }
+            else
+                clearError("ntripClientAlt" + n + "CasterPort");
+        }
     }
 
     if (isElementShown("rtcm1033Settings") == true) {

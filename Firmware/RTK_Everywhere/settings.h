@@ -943,6 +943,26 @@ struct Settings
     char ntripClient_MountPointPW[50] = "";
     bool ntripClient_TransmitGGA = true;
 
+    // RFSAT: NTRIP correction-source failover
+    // Source 0 is the primary (ntripClient_* above). Sources 1-3 are alternates tried in order.
+    bool ntripClientFailover = true;              // Switch to the next valid source on any failure
+    uint16_t ntripClientFailbackInterval_s = 600; // Retry the highest priority source after this many seconds (0 = never)
+    char ntripClientAlt1_CasterHost[50] = "";
+    uint16_t ntripClientAlt1_CasterPort = 2101;
+    char ntripClientAlt1_CasterUser[50] = "";
+    char ntripClientAlt1_CasterUserPW[50] = "";
+    char ntripClientAlt1_MountPoint[50] = "";
+    char ntripClientAlt2_CasterHost[50] = "";
+    uint16_t ntripClientAlt2_CasterPort = 2101;
+    char ntripClientAlt2_CasterUser[50] = "";
+    char ntripClientAlt2_CasterUserPW[50] = "";
+    char ntripClientAlt2_MountPoint[50] = "";
+    char ntripClientAlt3_CasterHost[50] = "";
+    uint16_t ntripClientAlt3_CasterPort = 2101;
+    char ntripClientAlt3_CasterUser[50] = "";
+    char ntripClientAlt3_CasterUserPW[50] = "";
+    char ntripClientAlt3_MountPoint[50] = "";
+
     // NTRIP Server
     bool debugNtripServerRtcm = false;
     bool debugNtripServerState = false;
@@ -1625,6 +1645,23 @@ const RTK_Settings_Entry rtkSettingsEntries[] =
     { 1, 1, 0, 1, 1, 1, 1, ALL, 1, tCharArry, sizeof(settings.ntripClient_MountPoint), & settings.ntripClient_MountPoint, "ntripClientMountPoint", nullptr, },
     { 1, 1, 0, 1, 1, 1, 1, ALL, 1, tCharArry, sizeof(settings.ntripClient_MountPointPW), & settings.ntripClient_MountPointPW, "ntripClientMountPointPW", nullptr, },
     { 1, 1, 0, 1, 1, 1, 1, ALL, 1, _bool,     0, & settings.ntripClient_TransmitGGA, "ntripClientTransmitGGA", nullptr, },
+    { 1, 1, 0, 1, 1, 1, 1, ALL, 1, _bool,     0, & settings.ntripClientFailover, "ntripClientFailover", nullptr, },
+    { 1, 1, 0, 1, 1, 1, 1, ALL, 1, _uint16_t, 0, & settings.ntripClientFailbackInterval_s, "ntripClientFailbackInterval", nullptr, },
+    { 1, 1, 0, 1, 1, 1, 1, ALL, 1, tCharArry, sizeof(settings.ntripClientAlt1_CasterHost), & settings.ntripClientAlt1_CasterHost, "ntripClientAlt1CasterHost", nullptr, },
+    { 1, 1, 0, 1, 1, 1, 1, ALL, 1, _uint16_t, 0, & settings.ntripClientAlt1_CasterPort, "ntripClientAlt1CasterPort", nullptr, },
+    { 1, 1, 0, 1, 1, 1, 1, ALL, 1, tCharArry, sizeof(settings.ntripClientAlt1_CasterUser), & settings.ntripClientAlt1_CasterUser, "ntripClientAlt1CasterUser", nullptr, },
+    { 1, 1, 0, 1, 1, 1, 1, ALL, 1, tCharArry, sizeof(settings.ntripClientAlt1_CasterUserPW), & settings.ntripClientAlt1_CasterUserPW, "ntripClientAlt1CasterUserPW", nullptr, },
+    { 1, 1, 0, 1, 1, 1, 1, ALL, 1, tCharArry, sizeof(settings.ntripClientAlt1_MountPoint), & settings.ntripClientAlt1_MountPoint, "ntripClientAlt1MountPoint", nullptr, },
+    { 1, 1, 0, 1, 1, 1, 1, ALL, 1, tCharArry, sizeof(settings.ntripClientAlt2_CasterHost), & settings.ntripClientAlt2_CasterHost, "ntripClientAlt2CasterHost", nullptr, },
+    { 1, 1, 0, 1, 1, 1, 1, ALL, 1, _uint16_t, 0, & settings.ntripClientAlt2_CasterPort, "ntripClientAlt2CasterPort", nullptr, },
+    { 1, 1, 0, 1, 1, 1, 1, ALL, 1, tCharArry, sizeof(settings.ntripClientAlt2_CasterUser), & settings.ntripClientAlt2_CasterUser, "ntripClientAlt2CasterUser", nullptr, },
+    { 1, 1, 0, 1, 1, 1, 1, ALL, 1, tCharArry, sizeof(settings.ntripClientAlt2_CasterUserPW), & settings.ntripClientAlt2_CasterUserPW, "ntripClientAlt2CasterUserPW", nullptr, },
+    { 1, 1, 0, 1, 1, 1, 1, ALL, 1, tCharArry, sizeof(settings.ntripClientAlt2_MountPoint), & settings.ntripClientAlt2_MountPoint, "ntripClientAlt2MountPoint", nullptr, },
+    { 1, 1, 0, 1, 1, 1, 1, ALL, 1, tCharArry, sizeof(settings.ntripClientAlt3_CasterHost), & settings.ntripClientAlt3_CasterHost, "ntripClientAlt3CasterHost", nullptr, },
+    { 1, 1, 0, 1, 1, 1, 1, ALL, 1, _uint16_t, 0, & settings.ntripClientAlt3_CasterPort, "ntripClientAlt3CasterPort", nullptr, },
+    { 1, 1, 0, 1, 1, 1, 1, ALL, 1, tCharArry, sizeof(settings.ntripClientAlt3_CasterUser), & settings.ntripClientAlt3_CasterUser, "ntripClientAlt3CasterUser", nullptr, },
+    { 1, 1, 0, 1, 1, 1, 1, ALL, 1, tCharArry, sizeof(settings.ntripClientAlt3_CasterUserPW), & settings.ntripClientAlt3_CasterUserPW, "ntripClientAlt3CasterUserPW", nullptr, },
+    { 1, 1, 0, 1, 1, 1, 1, ALL, 1, tCharArry, sizeof(settings.ntripClientAlt3_MountPoint), & settings.ntripClientAlt3_MountPoint, "ntripClientAlt3MountPoint", nullptr, },
 
     // NTRIP Server
     { 0, 0, 0, 1, 1, 1, 1, ALL, 1, _bool,     0, & settings.debugNtripServerRtcm, "debugNtripServerRtcm", nullptr, },
@@ -2108,6 +2145,25 @@ extern void ethernetUpdate();
 extern void wifiStationUpdate();
 
 // networkInterfaceTable entry
+// RFSAT: NTRIP correction-source failover - references into the settings for one source
+#define NTRIP_CLIENT_SOURCES 4
+#define NTRIP_FAILOVER_RETRY_MSEC (2 * 1000) // Delay before connecting to the next source
+typedef struct _NTRIP_SOURCE
+{
+    char *host;      // 50 bytes
+    uint16_t *port;
+    char *user;      // 50 bytes
+    char *userPw;    // 50 bytes
+    char *mount;     // 50 bytes
+} NTRIP_SOURCE;
+
+typedef enum
+{
+    NTRIP_FAILOVER_NONE = 0, // Failover not possible, use the original single-caster behaviour
+    NTRIP_FAILOVER_SWITCHED, // Switched to another source, retry quickly
+    NTRIP_FAILOVER_BACKOFF,  // Switched, but every source failed this cycle: apply the normal back-off
+} NTRIP_FAILOVER_RESULT;
+
 typedef struct _NETWORK_TABLE_ENTRY
 {
     NetworkInterface * netif;           // Network interface object address
