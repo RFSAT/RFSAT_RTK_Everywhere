@@ -51,6 +51,8 @@ The same settings also appear in the device's own Wi-Fi config page: **GNSS Conf
 
 ## Recommended source order
 
+**First tests (Oct 2026):** Metrica MSM_NEAR as source 1, MSM_VRS as source 2, EUREF as source 3. The reference to match is 6 mm, measured with the EOS Arrow Gold on MSM_NEAR. The configurator uses this order by default. Once a base of your own is running, move it to source 1, as in the table below.
+
 Use sources within 2–4 km of the work area for sub-centimetre fixes. The error is about 0.8 cm + 1 ppm × baseline.
 
 | # | Source | Example | Notes |

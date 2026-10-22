@@ -115,7 +115,7 @@ const PRESETS = {
   "Metrica nearest": {host:"gr.nrtk.eu", port:7801, mount:"MSM_NEAR", user:"", pw:""},
   "EUREF": {host:"euref-ip.net", port:2101, mount:"", user:"", pw:""}
 };
-const DEFAULT_ORDER = ["Own base","Metrica VRS","Metrica nearest","EUREF"];
+const DEFAULT_ORDER = ["Metrica nearest","Metrica VRS","EUREF","Own base"]; // first tests on Metrica; move own base to the top once a base runs
 const $ = id => document.getElementById(id);
 
 function buildWifi(){
