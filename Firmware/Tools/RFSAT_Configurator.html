@@ -245,15 +245,26 @@ async function readLoop(){
   } catch(e){ status("Link closed","warn"); }
 }
 async function tx(s){ await writer.write(new TextEncoder().encode(s)); }
+// Command mode: never guessed. An empty line makes the rover print its menu when it is in the menu;
+// then "+" switches to command mode (wait for "COMMAND MODE"). In command mode the empty line just
+// ends any half-typed line, so nothing gets glued to the first command.
+async function enterCmd(){
+  status("Checking the rover's mode…");
+  const log=$("log"), mark=log.textContent.length;
+  await tx("\r\n"); await sleep(800);
+  if(/Menu:|\) Exit/i.test(log.textContent.slice(mark))){
+    const m2=log.textContent.length; await tx("+");
+    for(let i=0;i<50&&!/COMMAND MODE/i.test(log.textContent.slice(m2));i++) await sleep(100);
+    await sleep(200); await tx("\r\n"); await sleep(300);
+  }
+  cmdMode=true; status("Command mode","ok");
+}
 // One command line: "$" and the checksum are added when missing
 async function sendLine(t){
   t=t.trim(); if(!t||!writer) return;
   if(t.startsWith("$")) t=t.slice(1);
   if(!/\*[0-9A-F]{2}$/i.test(t)) t=`${t}*${cks(t)}`;
-  // the rover prints its whole menu before it takes commands: wait for "COMMAND MODE" (at most 5 s)
-  if(!cmdMode){ status("Opening command mode…"); const mark=$("log").textContent.length; await tx("\r"); await sleep(600); await tx("+");
-    for(let i=0;i<50&&!/COMMAND MODE/i.test($("log").textContent.slice(mark));i++) await sleep(100);
-    await sleep(200); cmdMode=true; status("Command mode","ok"); }
+  await enterCmd();
   const log=$("log"); log.textContent += `\n> $${t}\n`; log.scrollTop = log.scrollHeight;
   await tx(`$${t}\r\n`);
   if(/^SPEXE,(REBOOT|EXIT)/i.test(t)) cmdMode=false;
@@ -267,10 +278,7 @@ $("send").onclick = async () => {
   $("send").disabled=true;
   try {
     status("Opening command mode…");
-    if(!cmdMode){ const mark=$("log").textContent.length; await tx("\r"); await sleep(600); await tx("+");
-      for(let i=0;i<50&&!/COMMAND MODE/i.test($("log").textContent.slice(mark));i++) await sleep(100); await sleep(200); cmdMode=true; }
-    // end any half-typed line first, so the first setting cannot be glued to something else
-    await tx("\r\n"); await sleep(300);
+    await enterCmd();
     for (let i=0;i<L.length;i++){ status(`Sending ${i+1}/${L.length}`); await tx(L[i] + "\r\n"); await sleep(120); }
     cmdMode=false; status("Sent. The rover saves the settings and restarts with them.","ok");
   } catch(e){ status("Send failed: "+e.message,"err"); }
