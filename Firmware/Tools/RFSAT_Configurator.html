@@ -250,7 +250,10 @@ async function sendLine(t){
   t=t.trim(); if(!t||!writer) return;
   if(t.startsWith("$")) t=t.slice(1);
   if(!/\*[0-9A-F]{2}$/i.test(t)) t=`${t}*${cks(t)}`;
-  if(!cmdMode){ status("Opening command mode…"); await tx("\r"); await sleep(600); await tx("+"); await sleep(800); cmdMode=true; status("Command mode","ok"); }
+  // the rover prints its whole menu before it takes commands: wait for "COMMAND MODE" (at most 5 s)
+  if(!cmdMode){ status("Opening command mode…"); const mark=$("log").textContent.length; await tx("\r"); await sleep(600); await tx("+");
+    for(let i=0;i<50&&!/COMMAND MODE/i.test($("log").textContent.slice(mark));i++) await sleep(100);
+    await sleep(200); cmdMode=true; status("Command mode","ok"); }
   const log=$("log"); log.textContent += `\n> $${t}\n`; log.scrollTop = log.scrollHeight;
   await tx(`$${t}\r\n`);
   if(/^SPEXE,(REBOOT|EXIT)/i.test(t)) cmdMode=false;
@@ -264,7 +267,8 @@ $("send").onclick = async () => {
   $("send").disabled=true;
   try {
     status("Opening command mode…");
-    await tx("\r"); await sleep(600); await tx("+"); await sleep(800); cmdMode=true;
+    { const mark=$("log").textContent.length; await tx("\r"); await sleep(600); await tx("+");
+      for(let i=0;i<50&&!/COMMAND MODE/i.test($("log").textContent.slice(mark));i++) await sleep(100); await sleep(200); } cmdMode=true;
     for (let i=0;i<L.length;i++){ status(`Sending ${i+1}/${L.length}`); await tx(L[i] + "\r\n"); await sleep(120); }
     cmdMode=false; status("Sent. The rover saves the settings and restarts with them.","ok");
   } catch(e){ status("Send failed: "+e.message,"err"); }
