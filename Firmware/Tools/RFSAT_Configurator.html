@@ -115,7 +115,10 @@ pre{margin:0;background:var(--console);color:var(--console-ink);font:12.5px/1.55
         <span class="status" id="status"></span>
       </div>
       <p class="note">USB: Chrome or Edge, this file opened locally. Bluetooth terminal: send <code>----------</code> (10 dashes) first, then paste.</p>
-      <div class="paneh"><span>Rover replies</span><button id="clearLog" type="button" style="font-size:12px;padding:2px 8px">Clear</button></div>
+      <div class="paneh"><span>Rover replies</span><span class="row" style="gap:6px">
+        <button id="pauseLog" type="button" style="font-size:12px;padding:2px 8px" aria-pressed="false">Pause</button>
+        <button id="saveLog" type="button" style="font-size:12px;padding:2px 8px">Save to file</button>
+        <button id="clearLog" type="button" style="font-size:12px;padding:2px 8px">Clear</button></span></div>
       <pre id="log" aria-label="Rover replies">Connect USB to see the rover's replies here.</pre>
       <div class="row">
         <input id="cmdLine" placeholder="Command, e.g. SPGET,enableNtripClient (checksum added)" style="flex:1;min-width:220px" aria-label="Command to send">
@@ -218,7 +221,21 @@ $("copy").onclick = async () => {
   try { await navigator.clipboard.writeText(t); status("Copied","ok"); }
   catch { const r=document.createRange(); r.selectNodeContents($("out")); const s=getSelection(); s.removeAllRanges(); s.addRange(r); status("Selected: press Ctrl+C","warn"); }
 };
-$("clearLog").onclick = () => { $("log").textContent = ""; };
+// Rover replies: the full session is kept in logAll (for Save to file); the window shows the last
+// 200 000 characters and stops updating while paused, so text can be selected and copied.
+let logAll="", paused=false, pendingShow=false;
+function logShow(){ const log=$("log"); log.textContent = logAll.slice(-200000); log.scrollTop = log.scrollHeight; }
+function logAdd(t){ logAll += t; if(logAll.length>5e6) logAll = logAll.slice(-4e6); if(paused) pendingShow=true; else logShow(); }
+$("pauseLog").onclick = () => { paused=!paused; $("pauseLog").textContent = paused?"Resume":"Pause"; $("pauseLog").setAttribute("aria-pressed",paused);
+  status(paused?"Paused: the window is frozen, messages are still recorded":"Resumed", paused?"warn":"ok"); if(!paused&&pendingShow){pendingShow=false;logShow()} };
+$("saveLog").onclick = () => {
+  const ts=new Date(), pad=n=>String(n).padStart(2,"0");
+  const name=`rover-log-${ts.getFullYear()}${pad(ts.getMonth()+1)}${pad(ts.getDate())}-${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(ts.getSeconds())}.txt`;
+  const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([logAll.replace(/\r?\n/g,"\r\n")],{type:"text/plain"})); a.download=name;
+  document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);
+  status(`Saved ${name} to your Downloads folder`,"ok");
+};
+$("clearLog").onclick = () => { logAll=""; $("log").textContent = ""; };
 $("export").onclick = () => { $("log").hidden=false; $("log").textContent = JSON.stringify(formState(), null, 2); };
 $("import").onchange = ev => { const f=ev.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ try{ setForm(JSON.parse(r.result)); status("Profile loaded","ok"); }catch{ status("That file is not a profile JSON","err"); } }; r.readAsText(f); };
 
@@ -239,9 +256,9 @@ $("connect").onclick = async () => {
   } catch(e){ status("Not connected: " + e.message,"err"); }
 };
 async function readLoop(){
-  const dec = new TextDecoder(); $("log").hidden=false; $("log").textContent="";
+  const dec = new TextDecoder(); $("log").hidden=false; logAll=""; $("log").textContent="";
   try { const rd = port.readable.getReader();
-    for(;;){ const {value,done} = await rd.read(); if(done) break; const log=$("log"); log.textContent = (log.textContent + dec.decode(value)).slice(-200000); log.scrollTop = log.scrollHeight; }
+    for(;;){ const {value,done} = await rd.read(); if(done) break; logAdd(dec.decode(value)); }
   } catch(e){ status("Link closed","warn"); }
 }
 async function tx(s){ await writer.write(new TextEncoder().encode(s)); }
@@ -250,11 +267,11 @@ async function tx(s){ await writer.write(new TextEncoder().encode(s)); }
 // ends any half-typed line, so nothing gets glued to the first command.
 async function enterCmd(){
   status("Checking the rover's mode…");
-  const log=$("log"), mark=log.textContent.length;
+  const mark=logAll.length;
   await tx("\r\n"); await sleep(800);
-  if(/Menu:|\) Exit/i.test(log.textContent.slice(mark))){
-    const m2=log.textContent.length; await tx("+");
-    for(let i=0;i<50&&!/COMMAND MODE/i.test(log.textContent.slice(m2));i++) await sleep(100);
+  if(/Menu:|\) Exit/i.test(logAll.slice(mark))){
+    const m2=logAll.length; await tx("+");
+    for(let i=0;i<50&&!/COMMAND MODE/i.test(logAll.slice(m2));i++) await sleep(100);
     await sleep(200); await tx("\r\n"); await sleep(300);
   }
   cmdMode=true; status("Command mode","ok");
@@ -265,7 +282,7 @@ async function sendLine(t){
   if(t.startsWith("$")) t=t.slice(1);
   if(!/\*[0-9A-F]{2}$/i.test(t)) t=`${t}*${cks(t)}`;
   await enterCmd();
-  const log=$("log"); log.textContent += `\n> $${t}\n`; log.scrollTop = log.scrollHeight;
+  logAdd(`\n> $${t}\n`);
   await tx(`$${t}\r\n`);
   if(/^SPEXE,(REBOOT|EXIT)/i.test(t)) cmdMode=false;
 }
