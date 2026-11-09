@@ -267,8 +267,10 @@ $("send").onclick = async () => {
   $("send").disabled=true;
   try {
     status("Opening command mode…");
-    { const mark=$("log").textContent.length; await tx("\r"); await sleep(600); await tx("+");
-      for(let i=0;i<50&&!/COMMAND MODE/i.test($("log").textContent.slice(mark));i++) await sleep(100); await sleep(200); } cmdMode=true;
+    if(!cmdMode){ const mark=$("log").textContent.length; await tx("\r"); await sleep(600); await tx("+");
+      for(let i=0;i<50&&!/COMMAND MODE/i.test($("log").textContent.slice(mark));i++) await sleep(100); await sleep(200); cmdMode=true; }
+    // end any half-typed line first, so the first setting cannot be glued to something else
+    await tx("\r\n"); await sleep(300);
     for (let i=0;i<L.length;i++){ status(`Sending ${i+1}/${L.length}`); await tx(L[i] + "\r\n"); await sleep(120); }
     cmdMode=false; status("Sent. The rover saves the settings and restarts with them.","ok");
   } catch(e){ status("Send failed: "+e.message,"err"); }
