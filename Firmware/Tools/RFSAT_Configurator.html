@@ -22,13 +22,13 @@
   --bg:#0e1514; --panel:#16201f; --ink:#e3ecea; --muted:#93a5a2; --line:#2a3836;
   --accent:#3fbfa6; --accent-ink:#06201b; --warn:#e3a54a; --ok:#5cc97b; --err:#ff8a80; --console:#081110; --console-ink:#bfe6dc; color-scheme:dark}
 *{box-sizing:border-box}
-body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--body);padding-block:24px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-.wrap{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,440px);gap:24px;align-items:start}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--body);padding-block:12px 24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1560px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:20px;align-items:start}
 @media (max-width:900px){.wrap{grid-template-columns:minmax(0,1fr)}}
-header{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px 24px;align-items:baseline;border-bottom:2px solid var(--ink);padding-bottom:12px}
+header{grid-column:1;display:flex;flex-wrap:wrap;gap:8px 24px;align-items:baseline;border-bottom:2px solid var(--ink);padding-bottom:12px}
 h1{font:700 30px/1.1 var(--display);letter-spacing:.01em;margin:0;text-wrap:balance}
 header p{margin:0;color:var(--muted);max-width:62ch}
-.col{display:flex;flex-direction:column;gap:16px;min-width:0}
+.col{grid-column:1;display:flex;flex-direction:column;gap:16px;min-width:0}
 section{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px}
 section h2{font:600 18px/1.2 var(--display);letter-spacing:.02em;margin:0 0 4px;display:flex;gap:10px;align-items:center}
 section > p.hint{margin:0 0 12px;color:var(--muted);font-size:13px}
@@ -44,8 +44,14 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid 
 button{font:500 13px var(--body);border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:4px;padding:6px 10px;cursor:pointer}
 button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
 button:disabled{opacity:.5;cursor:default}
-.console{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);display:flex;flex-direction:column;gap:10px;min-width:0}
-.console section{display:flex;flex-direction:column;gap:10px}
+.console{grid-column:2;grid-row:1 / span 2;position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);display:flex;flex-direction:column;gap:10px;min-width:0;height:calc(100vh - 36px)}
+.console section{display:flex;flex-direction:column;gap:8px;height:100%;min-height:0}
+/* the two consoles share the full window height: commands about 40 %, rover replies about 60 % */
+.console pre{max-height:none;min-height:0}
+#out{flex:2 1 0}
+#log{flex:3 1 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.paneh{display:flex;justify-content:space-between;align-items:baseline;font:600 13px var(--body);color:var(--muted);margin-top:2px}
+@media (max-width:900px){header{grid-column:1}.console{grid-column:1;grid-row:auto;position:static;height:auto}.console pre{max-height:60vh}#out,#log{flex:none}}
 pre{margin:0;background:var(--console);color:var(--console-ink);font:12.5px/1.55 var(--mono);padding:12px;border-radius:4px;overflow:auto;max-height:46vh;white-space:pre}
 .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .status{font:12px var(--mono);color:var(--muted)}
@@ -101,15 +107,16 @@ pre{margin:0;background:var(--console);color:var(--console-ink);font:12.5px/1.55
   <div class="console">
     <section>
       <h2>Commands <span class="badge" id="count"></span></h2>
-      <pre id="out" aria-label="Generated commands"></pre>
+      <pre id="out" aria-label="Generated commands" style="white-space:pre-wrap;overflow-wrap:anywhere"></pre>
       <div class="row">
         <button id="copy">Copy commands</button>
         <button class="primary" id="connect">Connect USB</button>
         <button id="send" disabled>Send to rover</button>
         <span class="status" id="status"></span>
       </div>
-      <p class="note">Bluetooth terminal: send <code>----------</code> (10 dashes) first to enter command mode, then paste the commands. USB: Chrome or Edge on a computer, with this file opened locally.</p>
-      <pre id="log" aria-label="Rover replies" hidden></pre>
+      <p class="note">USB: Chrome or Edge, this file opened locally. Bluetooth terminal: send <code>----------</code> (10 dashes) first, then paste.</p>
+      <div class="paneh"><span>Rover replies</span><button id="clearLog" type="button" style="font-size:12px;padding:2px 8px">Clear</button></div>
+      <pre id="log" aria-label="Rover replies">Connect USB to see the rover's replies here.</pre>
     </section>
   </div>
 </div>
@@ -196,6 +203,7 @@ $("copy").onclick = async () => {
   try { await navigator.clipboard.writeText(t); status("Copied","ok"); }
   catch { const r=document.createRange(); r.selectNodeContents($("out")); const s=getSelection(); s.removeAllRanges(); s.addRange(r); status("Selected: press Ctrl+C","warn"); }
 };
+$("clearLog").onclick = () => { $("log").textContent = ""; };
 $("export").onclick = () => { $("log").hidden=false; $("log").textContent = JSON.stringify(formState(), null, 2); };
 $("import").onchange = ev => { const f=ev.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ try{ setForm(JSON.parse(r.result)); status("Profile loaded","ok"); }catch{ status("That file is not a profile JSON","err"); } }; r.readAsText(f); };
 
@@ -217,7 +225,7 @@ $("connect").onclick = async () => {
 async function readLoop(){
   const dec = new TextDecoder(); $("log").hidden=false; $("log").textContent="";
   try { const rd = port.readable.getReader();
-    for(;;){ const {value,done} = await rd.read(); if(done) break; const log=$("log"); log.textContent = (log.textContent + dec.decode(value)).slice(-20000); log.scrollTop = log.scrollHeight; }
+    for(;;){ const {value,done} = await rd.read(); if(done) break; const log=$("log"); log.textContent = (log.textContent + dec.decode(value)).slice(-200000); log.scrollTop = log.scrollHeight; }
   } catch(e){ status("Link closed","warn"); }
 }
 async function tx(s){ await writer.write(new TextEncoder().encode(s)); }
