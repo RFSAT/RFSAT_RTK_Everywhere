@@ -178,7 +178,10 @@ function commands(){
   if (!valid) warn.push("No complete correction source yet: fill host, port and mount point.");
   L.push(cmd("enableNtripClient", valid? "true":"false"), cmd("ntripClientTransmitGGA", $("gga").checked), cmd("ntripClientFailover", $("failover").checked),
          cmd("ntripClientFailbackInterval", Math.max(0,Math.min(65535,parseInt($("failback").value)||0))),
-         cmd("pppMode", $("ppp").value), cmd("bluetoothRadioType", $("bt").value), exe("SAVE"), exe("APPLY"));
+         cmd("pppMode", $("ppp").value), cmd("bluetoothRadioType", $("bt").value), exe("SAVE"),
+         // RTK Everywhere's APPLY does nothing yet (a TODO in menuCommands.ino) and leaves the rover in "Serial config";
+         // REBOOT starts it again with the saved settings, so Wi-Fi, NTRIP and Bluetooth come up with them.
+         exe("REBOOT"));
   return {L, warn, valid};
 }
 function render(){
