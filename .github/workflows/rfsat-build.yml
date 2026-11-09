@@ -26,8 +26,10 @@ jobs:
           cd Firmware/Tools
           g++ -std=c++17 -o /tmp/ft rfsat_failover_test.cpp && /tmp/ft
 
+        # The name must contain "RTK_Everywhere_Firmware": SparkFun's RTK Firmware Uploader picks the
+        # matching ESP32 bootloader by the file name, and otherwise writes the old RTK Surveyor one.
       - name: Version tag
-        run: echo "TAG=RFSAT_v${FIRMWARE_VERSION_MAJOR}_${FIRMWARE_VERSION_MINOR}_$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+        run: echo "TAG=RTK_Everywhere_Firmware_RFSAT_v${FIRMWARE_VERSION_MAJOR}_${FIRMWARE_VERSION_MINOR}_$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
       - name: Build in Docker
         run: |

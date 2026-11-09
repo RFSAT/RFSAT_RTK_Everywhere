@@ -47,7 +47,7 @@ The same settings also appear in the device's own Wi-Fi config page: **GNSS Conf
 
 - Runs the host unit test of the failover logic.
 - Builds the firmware with the upstream Dockerfile. ESP32 core 3.0.7 and the libraries are pinned, and no SparkFun secrets are needed.
-- Uploads `RFSAT_v3_4_<commit>.bin`, the `.elf`, and the bootloader and partition binaries as a workflow artifact.
+- Uploads `RTK_Everywhere_Firmware_RFSAT_v3_4_<commit>.bin` (the RTK Firmware Uploader needs "RTK_Everywhere_Firmware" in the name to write the right bootloader), the `.elf`, and the bootloader and partition binaries as a workflow artifact.
 
 ## Recommended source order
 
@@ -70,7 +70,7 @@ Check host, port and mount point names against your Metrica and EUREF licence sh
 2. Flash it with the [SparkFun RTK Firmware Uploader](https://github.com/sparkfun/SparkFun_RTK_Firmware_Uploader): select the COM port and the `.bin`, then press **Upload Firmware**. The uploader writes the bootloader and partitions itself.
    - Alternatively, use esptool with the single merged image (bootloader, partitions and app at offset 0x0):
      ```
-     esptool.py --chip esp32 --baud 921600 write_flash 0x0 RFSAT_v3_4_afffebb_merged_0x0.bin
+     esptool.py --chip esp32 --baud 921600 write_flash 0x0 RTK_Everywhere_Firmware_RFSAT_v3_4_<commit>_merged.bin
      ```
 3. The first boot after flashing resets the settings to defaults, because the settings layout changed. Configure the rover again with the configurator.
 
