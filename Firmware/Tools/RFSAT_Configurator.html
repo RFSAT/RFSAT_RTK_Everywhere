@@ -117,6 +117,18 @@ pre{margin:0;background:var(--console);color:var(--console-ink);font:12.5px/1.55
       <p class="note">USB: Chrome or Edge, this file opened locally. Bluetooth terminal: send <code>----------</code> (10 dashes) first, then paste.</p>
       <div class="paneh"><span>Rover replies</span><button id="clearLog" type="button" style="font-size:12px;padding:2px 8px">Clear</button></div>
       <pre id="log" aria-label="Rover replies">Connect USB to see the rover's replies here.</pre>
+      <div class="row">
+        <input id="cmdLine" placeholder="Command, e.g. SPGET,enableNtripClient (checksum added)" style="flex:1;min-width:220px" aria-label="Command to send">
+        <button id="cmdSend" disabled>Send line</button>
+      </div>
+      <div class="row" id="quick">
+        <span class="status">Ask the rover:</span>
+        <button data-q="SPGET,wifiNetwork_0SSID" disabled>Wi-Fi 1 name</button>
+        <button data-q="SPGET,enableNtripClient" disabled>NTRIP on?</button>
+        <button data-q="SPGET,ntripClientCasterHost" disabled>Caster</button>
+        <button data-q="SPGET,ntripClientMountPoint" disabled>Mount point</button>
+        <button data-q="SPEXE,REBOOT" disabled>Restart</button>
+      </div>
     </section>
   </div>
 </div>
@@ -213,7 +225,7 @@ $("import").onchange = ev => { const f=ev.target.files[0]; if(!f) return; const 
 function status(t,c){ const s=$("status"); s.textContent=t; s.className="status "+(c||""); }
 
 // Web Serial (USB) transport
-let port=null, writer=null;
+let port=null, writer=null, cmdMode=false; // cmdMode: the rover's command mode ("Serial config") is open
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 $("connect").onclick = async () => {
   if (!("serial" in navigator)) { status("USB needs Chrome or Edge with this file opened locally","err"); return; }
@@ -222,7 +234,8 @@ $("connect").onclick = async () => {
     await port.open({ baudRate: 115200 });
     writer = port.writable.getWriter();
     readLoop();
-    $("send").disabled=false; status("Connected","ok");
+    $("send").disabled=false; $("cmdSend").disabled=false; document.querySelectorAll("#quick button").forEach(b=>b.disabled=false);
+    cmdMode=false; status("Connected","ok");
   } catch(e){ status("Not connected: " + e.message,"err"); }
 };
 async function readLoop(){
@@ -232,15 +245,28 @@ async function readLoop(){
   } catch(e){ status("Link closed","warn"); }
 }
 async function tx(s){ await writer.write(new TextEncoder().encode(s)); }
+// One command line: "$" and the checksum are added when missing
+async function sendLine(t){
+  t=t.trim(); if(!t||!writer) return;
+  if(t.startsWith("$")) t=t.slice(1);
+  if(!/\*[0-9A-F]{2}$/i.test(t)) t=`${t}*${cks(t)}`;
+  if(!cmdMode){ status("Opening command mode…"); await tx("\r"); await sleep(600); await tx("+"); await sleep(800); cmdMode=true; status("Command mode","ok"); }
+  const log=$("log"); log.textContent += `\n> $${t}\n`; log.scrollTop = log.scrollHeight;
+  await tx(`$${t}\r\n`);
+  if(/^SPEXE,(REBOOT|EXIT)/i.test(t)) cmdMode=false;
+}
+$("cmdSend").onclick = () => sendLine($("cmdLine").value);
+$("cmdLine").addEventListener("keydown", e => { if(e.key==="Enter") sendLine($("cmdLine").value); });
+document.querySelectorAll("#quick button").forEach(b => b.onclick = () => sendLine(b.dataset.q));
 $("send").onclick = async () => {
   const {L, valid} = commands();
   if (!valid) { status("Add at least one complete correction source first","err"); return; }
   $("send").disabled=true;
   try {
     status("Opening command mode…");
-    await tx("\r"); await sleep(600); await tx("+"); await sleep(800);
+    await tx("\r"); await sleep(600); await tx("+"); await sleep(800); cmdMode=true;
     for (let i=0;i<L.length;i++){ status(`Sending ${i+1}/${L.length}`); await tx(L[i] + "\r\n"); await sleep(120); }
-    status("Sent. The rover saves and applies, and may reboot.","ok");
+    cmdMode=false; status("Sent. The rover saves the settings and restarts with them.","ok");
   } catch(e){ status("Send failed: "+e.message,"err"); }
   $("send").disabled=false;
 };
