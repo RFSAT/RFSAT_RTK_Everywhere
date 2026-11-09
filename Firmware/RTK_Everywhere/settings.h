@@ -821,6 +821,9 @@ struct Settings
     bool useMSM7 = false;
     int rtcmMinElev = -90; // LG290P - minimum elevation for RTCM (PQTMCFGRTCM)
 
+    // Display
+    uint8_t displayContrast = 0xCF; // OLED contrast 0-255 (RFSAT); lower = dimmer
+
     // Battery
     bool enablePrintBatteryMessages = true;
     uint32_t shutdownNoChargeTimeoutMinutes = 0; // If > 0, shut down unit after timeout if not charging
@@ -1362,6 +1365,8 @@ typedef enum
     CLI_LIST,
 } t_cliResult;
 
+bool displayCmdUpdateContrast(const char *settingName, void *settingData, int settingType); // Display.ino
+
 const RTK_Settings_Entry rtkSettingsEntries[] =
 {
 // inWebConfig = Should this setting be sent to the WiFi/Eth Config page
@@ -1446,6 +1451,9 @@ const RTK_Settings_Entry rtkSettingsEntries[] =
     { 0, 1, 0, 1, 0, 1, 1, ALL, 1, _float,    1, & settings.surveyInStartingAccuracy, "surveyInStartingAccuracy", nullptr, },
     { 1, 1, 0, 0, 0, 0, 1, MSM, 1, _bool,     0, & settings.useMSM7, "useMSM7",  nullptr, },
     { 1, 1, 0, 0, 0, 0, 1, MSM, 1, _int,      0, & settings.rtcmMinElev, "rtcmMinElev",  nullptr, },
+
+    // Display
+    { 0, 1, 0, 1, 1, 0, 1, ALL, 0, _uint8_t,  0, & settings.displayContrast, "displayContrast", displayCmdUpdateContrast, },
 
     // Battery
     { 0, 0, 0, 0, 1, 1, 1, ALL, 1, _bool,     0, & settings.enablePrintBatteryMessages, "enablePrintBatteryMessages", nullptr, },

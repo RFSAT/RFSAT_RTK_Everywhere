@@ -580,7 +580,7 @@ void beginDisplay(TwoWire *i2cBus)
         theDisplay->setPinConfig(0x12);    // Set COM Pins Hardware Configuration (DAh)
         theDisplay->setPreCharge(0xF1);    // Set Pre-charge Period (D9h)
         theDisplay->setVcomDeselect(0x40); // Set VCOMH Deselect Level (DBh)
-        theDisplay->setContrast(0xCF);     // Set Contrast Control for BANK0 (81h)
+        theDisplay->setContrast(settings.displayContrast); // Set Contrast Control for BANK0 (81h), default 0xCF
     }
 
     if (present.display_type == DISPLAY_184x88)
@@ -652,6 +652,14 @@ void displayUpdate()
     // Update the display if connected
     if (online.display == true)
     {
+        // RFSAT: the display starts before the profile is loaded, so apply the saved contrast once it differs
+        static int appliedContrast = 0xCF;
+        if (present.display_type != DISPLAY_184x88 && appliedContrast != settings.displayContrast)
+        {
+            appliedContrast = settings.displayContrast;
+            theDisplay->setContrast(settings.displayContrast);
+        }
+
         static unsigned long lastDisplayUpdate = 0;
         unsigned long displayUpdateInterval = 500; // Update display at 2Hz
         if (present.display_type == DISPLAY_184x88)
@@ -4360,3 +4368,13 @@ void paintGenericUpdate(const char *device, const char *update)
     displayMessage(temp, 100);
 }
 
+
+//----------------------------------------
+// RFSAT: apply a new OLED contrast straight after "SPSET,displayContrast,<0-255>"
+//----------------------------------------
+bool displayCmdUpdateContrast(const char *settingName, void *settingData, int settingType)
+{
+    if (online.display == true && theDisplay != nullptr && present.display_type != DISPLAY_184x88)
+        theDisplay->setContrast(settings.displayContrast); // displayUpdate() also follows the setting
+    return (true);
+}
