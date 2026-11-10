@@ -10,6 +10,11 @@ on:
     tags: [ "rfsat-v*" ]
   pull_request:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Publish a release with this tag (e.g. rfsat-v3.4-r1); leave empty for a plain build"
+        required: false
+        default: ""
 
 env:
   CORE_VERSION: 3.0.7
@@ -71,9 +76,11 @@ jobs:
 
       # Tags rfsat-v<upstream major>.<minor>-r<n> (e.g. rfsat-v3.4-r1) publish a GitHub pre-release
       - name: Release
-        if: startsWith(github.ref, 'refs/tags/rfsat-v')
+        if: startsWith(github.ref, 'refs/tags/rfsat-v') || inputs.release_tag != ''
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.release_tag || github.ref_name }}
+          target_commitish: ${{ github.sha }}
           prerelease: true
           generate_release_notes: true
           files: |
