@@ -7,6 +7,7 @@ name: RFSAT build (RTK Postcard / ESP32)
 on:
   push:
     branches: [ "rfsat/**", "main" ]
+    tags: [ "rfsat-v*" ]
   pull_request:
   workflow_dispatch:
 
@@ -14,6 +15,11 @@ env:
   CORE_VERSION: 3.0.7
   FIRMWARE_VERSION_MAJOR: 3
   FIRMWARE_VERSION_MINOR: 4
+
+
+# The Release step creates GitHub releases
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -60,5 +66,17 @@ jobs:
           path: |
             Firmware/build/${{ env.TAG }}*.bin
             Firmware/build/${{ env.TAG }}.elf
+            Firmware/build/RTK_Everywhere.ino.bootloader.bin
+            Firmware/build/RTK_Everywhere.ino.partitions.bin
+
+      # Tags rfsat-v<upstream major>.<minor>-r<n> (e.g. rfsat-v3.4-r1) publish a GitHub pre-release
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/rfsat-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: true
+          generate_release_notes: true
+          files: |
+            Firmware/build/${{ env.TAG }}*.bin
             Firmware/build/RTK_Everywhere.ino.bootloader.bin
             Firmware/build/RTK_Everywhere.ino.partitions.bin
