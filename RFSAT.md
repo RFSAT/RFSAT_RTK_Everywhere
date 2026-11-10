@@ -47,7 +47,8 @@ The same settings also appear in the device's own Wi-Fi config page: **GNSS Conf
 
 - Runs the host unit test of the failover logic.
 - Builds the firmware with the upstream Dockerfile. ESP32 core 3.0.7 and the libraries are pinned, and no SparkFun secrets are needed.
-- Uploads `RTK_Everywhere_Firmware_RFSAT_v3_4_<commit>.bin` (the RTK Firmware Uploader needs "RTK_Everywhere_Firmware" in the name to write the right bootloader), the `.elf`, and the bootloader and partition binaries as a workflow artifact.
+- Uploads `RTK_Everywhere_Firmware_RFSAT_v3_4_<commit>_V4.bin` (the RTK Firmware Uploader needs "RTK_Everywhere_Firmware" in the name to write the right bootloader), the merged image `…_merged_V4.bin`, the `.elf`, and `RTK_Everywhere_bootloader_V4.bin` / `RTK_Everywhere_partitions_V4.bin` as a workflow artifact, and to the release when a tag is given.
+- File names end with the RFSAT variant ID `_V4` (RTK Postcard + Portability Shield), so each file shows which prototype it belongs on.
 
 ## Recommended source order
 
@@ -66,11 +67,11 @@ Check host, port and mount point names against your Metrica and EUREF licence sh
 
 ## Flashing
 
-1. Download the firmware `.bin` from the GitHub Actions run (Actions → *RFSAT build* → artifact).
+1. Download `RTK_Everywhere_Firmware_RFSAT_v3_4_<commit>_V4.bin` from the release (or the GitHub Actions run → *RFSAT build* → artifact).
 2. Flash it with the [SparkFun RTK Firmware Uploader](https://github.com/sparkfun/SparkFun_RTK_Firmware_Uploader): select the COM port and the `.bin`, then press **Upload Firmware**. The uploader writes the bootloader and partitions itself.
    - Alternatively, use esptool with the single merged image (bootloader, partitions and app at offset 0x0):
      ```
-     esptool.py --chip esp32 --baud 921600 write_flash 0x0 RTK_Everywhere_Firmware_RFSAT_v3_4_<commit>_merged.bin
+     esptool.py --chip esp32 --baud 921600 write_flash 0x0 RTK_Everywhere_Firmware_RFSAT_v3_4_<commit>_merged_V4.bin
      ```
 3. The first boot after flashing resets the settings to defaults, because the settings layout changed. Configure the rover again with the configurator.
 
