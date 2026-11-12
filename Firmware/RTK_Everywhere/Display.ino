@@ -766,6 +766,7 @@ void displayUpdate()
                 displayTiltIcon(&iconPropertyList);
                 displayBatteryVsEthernet(&iconPropertyList);
                 displayFullIPAddress(&iconPropertyList); // Bottom left - 128x64 / 184x88 only
+                displayNtripSource();                    // RFSAT: caster and mount point in use - 128x64 only
                 setRadioIcons(&iconPropertyList);
                 break;
             case (STATE_ROVER_FIX):
@@ -781,6 +782,7 @@ void displayUpdate()
                 displayTiltIcon(&iconPropertyList);
                 displayBatteryVsEthernet(&iconPropertyList);
                 displayFullIPAddress(&iconPropertyList); // Bottom left - 128x64 / 184x88 only
+                displayNtripSource();                    // RFSAT: caster and mount point in use - 128x64 only
                 setRadioIcons(&iconPropertyList);
                 break;
             case (STATE_ROVER_RTK_FLOAT):
@@ -800,6 +802,7 @@ void displayUpdate()
                 displayTiltIcon(&iconPropertyList);
                 displayBatteryVsEthernet(&iconPropertyList);
                 displayFullIPAddress(&iconPropertyList); // Bottom left - 128x64 / 184x88 only
+                displayNtripSource();                    // RFSAT: caster and mount point in use - 128x64 only
                 setRadioIcons(&iconPropertyList);
                 break;
             case (STATE_ROVER_RTK_FIX):
@@ -811,6 +814,7 @@ void displayUpdate()
                 displayTiltIcon(&iconPropertyList);
                 displayBatteryVsEthernet(&iconPropertyList);
                 displayFullIPAddress(&iconPropertyList); // Bottom left - 128x64 / 184x88 only
+                displayNtripSource();                    // RFSAT: caster and mount point in use - 128x64 only
                 setRadioIcons(&iconPropertyList);
                 break;
 
@@ -3135,6 +3139,42 @@ void printFittedText(const char *text, uint8_t xPos, uint8_t yPos, uint8_t charW
     char printThis[maxChars + 1];
     snprintf(printThis, maxChars + 1, "%s", &text[shuttle[startPos]]);
     theDisplay->print(printThis);
+}
+
+// RFSAT: on the rover screen of 128x64 displays, the correction source the NTRIP client is using, in the free
+// band between the header icons (y 0-12) and the accuracy / satellite line (y 26):
+//   "2:gr.nrtk.eu/MSM_VRS"  - source 2 of the four configured, caster host, mount point
+// A line too long for the 21 characters alternates every 3 s between "2:host" and "2:/mount". Nothing is shown
+// while the client is not connected (corrections from a phone over Bluetooth are not named).
+void displayNtripSource()
+{
+#ifdef COMPILE_NTRIP_CLIENT
+    if (present.display_type != DISPLAY_128x64)
+        return;
+    if (ntripClientIsConnected() == false)
+        return;
+
+    NTRIP_SOURCE *src = ntripSrc();
+    if (src == nullptr || src->host == nullptr || src->mount == nullptr)
+        return;
+
+    const uint8_t maxChars = 128 / 6; // 5x7 font: 6 pixels per character
+    char line[110];
+    uint8_t n = ntripSourceActiveIndex() + 1;
+    snprintf(line, sizeof(line), "%d:%s/%s", n, src->host, src->mount);
+    if (strlen(line) > maxChars)
+    {
+        if ((millis() / 3000) % 2)
+            snprintf(line, sizeof(line), "%d:/%s", n, src->mount);
+        else
+            snprintf(line, sizeof(line), "%d:%s", n, src->host);
+    }
+    line[maxChars] = '\0'; // anything still too long is cut
+
+    theDisplay->setFont(QW_FONT_5X7, QW_EP_FONT_5X7); // Smallest font
+    theDisplay->setCursor(0, 15);
+    theDisplay->print(line);
+#endif // COMPILE_NTRIP_CLIENT
 }
 
 void displayFullIPAddress(std::vector<iconPropertyBlinking> *iconList) // Bottom left - 128x64 only

@@ -308,6 +308,12 @@ bool ntripClientConnect()
 //----------------------------------------
 // Determine if another connection is possible or if the limit has been reached
 //----------------------------------------
+// RFSAT: the client is connected to a caster and receiving its stream (for the display)
+bool ntripClientIsConnected()
+{
+    return ntripClientState == NTRIP_CLIENT_CONNECTED;
+}
+
 bool ntripClientConnectLimitReached()
 {
     bool limitReached;
