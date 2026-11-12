@@ -113,6 +113,8 @@ const iconProperty *wifiIconTable[ICON_POSITION_MAX][5]{
 
 // Icons
 #include "icons.h"
+#include "icons_rfsat.h"
+#include "rfsat_version.h"
 
 void paintLogging(std::vector<iconPropertyBlinking> *iconList, bool pulse = true, bool NTP = false); // Header
 
@@ -1010,8 +1012,9 @@ void displaySplashCommon(bool nameKnown)
         int numLines = productVariantProperties->rtkPrefix ? 4 : 3;
         int yPos = (theDisplay->getHeight() - ((fontHeight * 4) + 2 + 5 + 7)) / 2;
 
-        // Display the product name
-        printTextCenter(getBrandAttributeFromProductVariant(productVariant)->name,
+        // Display the product name (RFSAT brand: the company name)
+        RTKBrandAttribute *brandAttribute = getBrandAttributeFromProductVariant(productVariant);
+        printTextCenter((brandAttribute->brand == BRAND_RFSAT) ? RFSAT_COMPANY_NAME : brandAttribute->name,
                             yPos, QW_FONT_5X7, QW_EP_FONT_5X7, 1, false); // text, y, font type, kerning, inverted
 
         if (productVariantProperties->rtkPrefix)
@@ -1026,7 +1029,7 @@ void displaySplashCommon(bool nameKnown)
 
         yPos = yPos + fontHeight + 7;
         char unitFirmware[50];
-        espFirmwareVersionGet(unitFirmware, sizeof(unitFirmware), false);
+        rfsatVersionGet(unitFirmware, sizeof(unitFirmware)); // e.g. "v3.4-r3 a1b2c3d": the RFSAT release
         printTextCenter(unitFirmware, yPos, QW_FONT_5X7, QW_EP_FONT_5X7, 1, false);
 
         theDisplay->displaySplash();

@@ -236,6 +236,8 @@ const char *debugMessagePrefix = "# => "; // Something ~unique and easy to trigg
 // I2C for GNSS, battery gauge, display
 //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 #include "icons.h"
+#include "icons_rfsat.h"
+#include "rfsat_version.h"
 #include <vector> //Needed for icons etc.
 TwoWire *i2cDisplay = nullptr;
 TwoWire *i2cAuthCoPro = nullptr;

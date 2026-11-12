@@ -31,6 +31,9 @@ void menuMain()
         espFirmwareVersionGet(versionString, sizeof(versionString), true);
         systemPrintf("%s %s%s %s\r\n", getBrandAttributeFromProductVariant(productVariant)->name,
                      productVariantProperties->rtkPrefix ? "RTK " : "", platformPrefix, versionString);
+        char rfsatVersion[50];
+        rfsatVersionGet(rfsatVersion, sizeof(rfsatVersion));
+        systemPrintf("RFSAT firmware %s (built %s)\r\n", rfsatVersion, __DATE__);
         systemPrintf("Mode: %s\r\n", stateToRtkMode(systemState));
 
 #ifdef COMPILE_BT

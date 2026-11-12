@@ -42,6 +42,17 @@ jobs:
       - name: Version tag
         run: echo "TAG=RTK_Everywhere_Firmware_RFSAT_v${FIRMWARE_VERSION_MAJOR}_${FIRMWARE_VERSION_MINOR}_$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
+      # The RFSAT release shown on the boot screen, in the main menu and in SPGET,espFirmwareVersion:
+      # "r3" from the tag rfsat-v3.4-r3 (pushed tag or the release_tag input), "dev" for other builds.
+      - name: RFSAT version
+        run: |
+          REF="${{ inputs.release_tag }}"; [ -z "$REF" ] && REF="${GITHUB_REF_NAME}"
+          REL=$(echo "$REF" | sed -n 's/^rfsat-v[0-9.]*-\(r[0-9][0-9]*\)$/\1/p'); [ -z "$REL" ] && REL=dev
+          SHA=$(git rev-parse --short=7 HEAD)
+          printf '// Written by the RFSAT build workflow\n#pragma once\n#define RFSAT_RELEASE "%s"\n#define RFSAT_COMMIT "%s"\n' "$REL" "$SHA" \
+            > Firmware/RTK_Everywhere/rfsat_version.h
+          cat Firmware/RTK_Everywhere/rfsat_version.h
+
       - name: Build in Docker
         run: |
           cd Firmware

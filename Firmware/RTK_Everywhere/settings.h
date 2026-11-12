@@ -162,6 +162,7 @@ const uint8_t rtkModeNameEntries = sizeof(rtkModeName) / sizeof(rtkModeName[0]);
 typedef enum {
     BRAND_SPARKFUN = 0,
     BRAND_SPARKPNT,
+    BRAND_RFSAT, // RFSAT Limited: the Postcard rovers built by RFSAT (boot logo, menu, Bluetooth name)
     // Add new brands above this line
     BRAND_NUM
 } RTKBrands_e;
@@ -186,11 +187,17 @@ extern const uint8_t logoSparkPNT[];
 extern const uint8_t logoSparkPNT_128x64_Height;
 extern const uint8_t logoSparkPNT_128x64_Width;
 extern const uint8_t logoSparkPNT_128x64[];
+extern const uint8_t logoRFSAT_Height;
+extern const uint8_t logoRFSAT_Width;
+extern const uint8_t logoRFSAT[];
 
 RTKBrandAttribute RTKBrandAttributes[RTKBrands_e::BRAND_NUM] = {
     { BRAND_SPARKFUN, "SparkFun", logoSparkFun_Width, logoSparkFun_Height, logoSparkFun },
     { BRAND_SPARKPNT, "SparkPNT", logoSparkPNT_Width, logoSparkPNT_Height, logoSparkPNT },
+    { BRAND_RFSAT,    "RFSAT",    logoRFSAT_Width,    logoRFSAT_Height,    logoRFSAT },
 };
+// Company name on the boot screen for the RFSAT brand (the brand name above, "RFSAT", is also the Bluetooth name prefix)
+#define RFSAT_COMPANY_NAME "RFSAT Limited"
 const int RTKBrandAttributesEntries = sizeof(RTKBrandAttributes) / sizeof(RTKBrandAttributes[0]);
 
 // Product Variant - Do NOT reorder and do NOT remove unused values!!!
@@ -305,7 +312,7 @@ const productProperties productPropertiesTable[] =
     { RTK_EVK,          1,    10,   17.5,   BRAND_SPARKFUN, RTK_HOUSING_EVK,        "EVK",          "EVK",      "SFE_EVK",              "EVK",              true,   "0000000000000000", STATE_ROVER_NOT_STARTED,    "https://www.sparkfun.com/rtk_evk_registration" },
     { RTK_FACET_MOSAIC, 1,    4.7,  10,     BRAND_SPARKPNT, RTK_HOUSING_FACET,      "Facet X5",     "Facet X5", "SFE_Facet_mosaic",     "Facet mosaicX5",   true,   "0000000000000000", STATE_ROVER_NOT_STARTED,    "https://www.sparkfun.com/rtk_facet_mosaic_registration" },
     { RTK_TORCH,        0,    0,    0,      BRAND_SPARKPNT, RTK_HOUSING_TORCH,      "Torch",        "Torch",    "SFE_Torch",            "Torch",            true,   "0000000000000000", STATE_ROVER_NOT_STARTED,    "https://www.sparkfun.com/rtk_torch_registration" },
-    { RTK_POSTCARD,     3.3,  10,   8.5,    BRAND_SPARKFUN, RTK_HOUSING_POSTCARD,   "Postcard",     "Postcard", "SFE_Postcard",         "Postcard",         true,   "e9e877bb278140f0", STATE_ROVER_NOT_STARTED,    "https://www.sparkfun.com/rtk_postcard_registration" },
+    { RTK_POSTCARD,     3.3,  10,   8.5,    BRAND_RFSAT,    RTK_HOUSING_POSTCARD,   "Postcard",     "Postcard", "SFE_Postcard",         "Postcard",         true,   "e9e877bb278140f0", STATE_ROVER_NOT_STARTED,    "https://www.sparkfun.com/rtk_postcard_registration" },
     { RTK_FACET_FP,     10,   20,   8.5,    BRAND_SPARKPNT, RTK_HOUSING_FP,         "FP",           "FP",       "SFE_FP",               "FP",               false,  "e9e877bb278140f0", STATE_ROVER_NOT_STARTED,    "https://www.sparkfun.com/rtk_facet_fp_registration" },
     { RTK_TORCH_X2,     8.2,  3.3,  8.5,    BRAND_SPARKPNT, RTK_HOUSING_TX2,        "TX2",          "TX2",      "SFE_TX2",              "TX2",              false,  "3407c7ca3d6b4984", STATE_ROVER_NOT_STARTED,    "https://www.sparkfun.com/tx2_registration" },
     { RTK_UNKNOWN,      0,    0,    0,      DEFAULT_BRAND,  RTK_HOUSING_MAX_NONE,   "Unknown",      "Unknown",  "SFE_Unknown",          "Unknown",          true,   "0000000000000000", STATE_ROVER_NOT_STARTED,    "Unknown" },

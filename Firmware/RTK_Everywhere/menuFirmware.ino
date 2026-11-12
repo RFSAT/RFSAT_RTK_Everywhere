@@ -199,6 +199,14 @@ void espFirmwareVersionGet(char *buffer, int bufferLength, bool includeDate)
     espFirmwareVersionFormat(FIRMWARE_VERSION_MAJOR, FIRMWARE_VERSION_MINOR, buffer, bufferLength, includeDate);
 }
 
+// RFSAT release: "v3.4-r3 a1b2c3d" (release build from tag rfsat-v3.4-r3) or "v3.4-dev a1b2c3d" (any other build).
+// Short enough for one line of the boot screen (21 characters in the 5x7 font). See rfsat_version.h.
+void rfsatVersionGet(char *buffer, int bufferLength)
+{
+    snprintf(buffer, bufferLength, "v%d.%d-%s%s%s", FIRMWARE_VERSION_MAJOR, FIRMWARE_VERSION_MINOR, RFSAT_RELEASE,
+             RFSAT_COMMIT[0] ? " " : "", RFSAT_COMMIT);
+}
+
 // Returns string containing the current version number - ie "v2.0"
 const char *printEspFirmwareVersion()
 {
@@ -206,6 +214,14 @@ const char *printEspFirmwareVersion()
     static char espFirmwareVersion[86];
     bool rcBuild = firmwareCheckForRcBuild();
     espFirmwareVersionGet(espFirmwareVersion, sizeof(espFirmwareVersion), rcBuild);
+    // RFSAT: append the release, e.g. "d3.4-Nov 12 2026 RFSAT v3.4-r3 a1b2c3d"
+    int used = strlen(espFirmwareVersion);
+    if (used < (int)sizeof(espFirmwareVersion) - 8)
+    {
+        snprintf(&espFirmwareVersion[used], sizeof(espFirmwareVersion) - used, " RFSAT ");
+        used = strlen(espFirmwareVersion);
+        rfsatVersionGet(&espFirmwareVersion[used], sizeof(espFirmwareVersion) - used);
+    }
 
     return ((const char *)espFirmwareVersion);
 }
