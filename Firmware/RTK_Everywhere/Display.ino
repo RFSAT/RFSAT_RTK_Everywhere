@@ -647,6 +647,10 @@ void beginDisplay(TwoWire *i2cBus)
 }
 
 // Given the system state, display the appropriate information
+// RFSAT: on the 128x64 rover screen the accuracy / satellite row moves down by this many pixels to make room for
+// the caster (C:) and mount point (M:) rows; set in displayUpdate() for each screen
+static uint8_t rfsatRoverRowShift = 0;
+
 void displayUpdate()
 {
     static std::vector<iconPropertyBlinking> iconPropertyList; // List of icons to be displayed
@@ -681,6 +685,11 @@ void displayUpdate()
             iconPropertyList.clear(); // Redundant?
 
             bool textToPrint = false;
+
+            rfsatRoverRowShift = ((present.display_type == DISPLAY_128x64) && (systemState >= STATE_ROVER_NO_FIX) &&
+                                  (systemState <= STATE_ROVER_RTK_FIX))
+                                     ? 8
+                                     : 0;
 
             switch (systemState)
             {
@@ -2557,6 +2566,7 @@ void displayTiltIcon(std::vector<iconPropertyBlinking> *iconList)
             const iconProperties *icon = &TiltIconProperties;
             iconPropertyBlinking prop;
             prop.icon = icon->iconDisplay[present.display_type];
+            prop.icon.yPos += rfsatRoverRowShift;
             prop.duty = 0b11111111;
             iconList->push_back(prop);
         }
@@ -2568,6 +2578,7 @@ void displayHorizontalAccuracy(std::vector<iconPropertyBlinking> *iconList, cons
 {
     iconPropertyBlinking prop;
     prop.icon = icon->iconDisplay[present.display_type];
+    prop.icon.yPos += rfsatRoverRowShift;
     prop.duty = duty;
     iconList->push_back(prop);
 
@@ -2595,6 +2606,7 @@ void displayRTKAccuracy(std::vector<iconPropertyBlinking> *iconList, const iconP
     iconPropertyBlinking prop;
 
     prop.icon = icon->iconDisplay[present.display_type];
+    prop.icon.yPos += rfsatRoverRowShift;
     prop.duty = fixed ? 0b11111111 : 0b01010101;
 
     // On e-paper:
@@ -2710,10 +2722,11 @@ displayCoords paintSIVIcon(std::vector<iconPropertyBlinking> *iconList, const ic
 
     displayCoords textCoords;
     textCoords.x = icon->iconDisplay[present.display_type].xPos + icon->iconDisplay[present.display_type].width + 2;
-    textCoords.y = icon->iconDisplay[present.display_type].yPos + 1;
+    textCoords.y = icon->iconDisplay[present.display_type].yPos + 1 + rfsatRoverRowShift;
 
     iconPropertyBlinking prop;
     prop.icon = icon->iconDisplay[present.display_type];
+    prop.icon.yPos += rfsatRoverRowShift;
     prop.duty = duty;
     iconList->push_back(prop);
 
@@ -3141,11 +3154,21 @@ void printFittedText(const char *text, uint8_t xPos, uint8_t yPos, uint8_t charW
     theDisplay->print(printThis);
 }
 
-// RFSAT: on the rover screen of 128x64 displays, the correction source the NTRIP client is using, in the free
-// band between the header icons (y 0-12) and the accuracy / satellite line (y 26):
-//   "2:gr.nrtk.eu/MSM_VRS"  - source 2 of the four configured, caster host, mount point
-// A line too long for the 21 characters alternates every 3 s between "2:host" and "2:/mount". Nothing is shown
+// RFSAT: the caster and mount point the NTRIP client is using, on two rows of the 128x64 rover screen between the
+// header icons and the accuracy / satellite row (moved down by rfsatRoverRowShift):
+//   C:Metrica SmartNet     caster: known casters by name, any other by its host name or address
+//   M:MSM_VRS              mount point
+// Rows at y 14 and 24 (5x7 font, 21 characters), the accuracy row at 34: a regular 10-pixel pitch. Nothing is shown
 // while the client is not connected (corrections from a phone over Bluetooth are not named).
+static const struct
+{
+    const char *host;
+    const char *name;
+} rfsatKnownCasters[] = {
+    {"gr.nrtk.eu", "Metrica SmartNet"}, {"euref-ip.net", "EUREF-IP"}, {"www.euref-ip.net", "EUREF-IP"},
+    {"rtk2go.com", "RTK2go"},           {"caster.centipede.fr", "Centipede"},
+};
+
 void displayNtripSource()
 {
 #ifdef COMPILE_NTRIP_CLIENT
@@ -3158,21 +3181,23 @@ void displayNtripSource()
     if (src == nullptr || src->host == nullptr || src->mount == nullptr)
         return;
 
-    const uint8_t maxChars = 128 / 6; // 5x7 font: 6 pixels per character
-    char line[110];
-    uint8_t n = ntripSourceActiveIndex() + 1;
-    snprintf(line, sizeof(line), "%d:%s/%s", n, src->host, src->mount);
-    if (strlen(line) > maxChars)
-    {
-        if ((millis() / 3000) % 2)
-            snprintf(line, sizeof(line), "%d:/%s", n, src->mount);
-        else
-            snprintf(line, sizeof(line), "%d:%s", n, src->host);
-    }
-    line[maxChars] = '\0'; // anything still too long is cut
+    const char *name = src->host;
+    for (int i = 0; i < (int)(sizeof(rfsatKnownCasters) / sizeof(rfsatKnownCasters[0])); i++)
+        if (strcasecmp(src->host, rfsatKnownCasters[i].host) == 0)
+            name = rfsatKnownCasters[i].name;
 
+    const uint8_t maxChars = 128 / 6; // 5x7 font: 6 pixels per character
+    char line[64];
     theDisplay->setFont(QW_FONT_5X7, QW_EP_FONT_5X7); // Smallest font
-    theDisplay->setCursor(0, 15);
+
+    snprintf(line, sizeof(line), "C:%s", name);
+    line[maxChars] = '\0'; // cut what does not fit
+    theDisplay->setCursor(0, 14);
+    theDisplay->print(line);
+
+    snprintf(line, sizeof(line), "M:%s", src->mount);
+    line[maxChars] = '\0';
+    theDisplay->setCursor(0, 24);
     theDisplay->print(line);
 #endif // COMPILE_NTRIP_CLIENT
 }
