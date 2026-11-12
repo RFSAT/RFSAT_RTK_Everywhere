@@ -115,7 +115,7 @@ pre{margin:0;background:var(--console);color:var(--console-ink);font:12.5px/1.55
         <button id="send" disabled>Send to rover</button>
         <span class="status" id="status"></span>
       </div>
-      <p class="note">USB: Chrome or Edge, this file opened locally. Bluetooth terminal: send <code>----------</code> (10 dashes) first, then paste.</p>
+      <p class="note">USB: Chrome or Edge, this file opened locally. Bluetooth terminal (e.g. Serial Bluetooth Terminal): with nothing sent for 2 s, send <code>+++</code> without a line ending (reply "Echoing all serial to BT device"), then Enter (the menu appears), then <code>+</code> without a line ending (reply "COMMAND MODE"), then paste the commands, each ending with Enter.</p>
       <div class="paneh"><span>Rover replies</span><span class="row" style="gap:6px">
         <button id="pauseLog" type="button" style="font-size:12px;padding:2px 8px" aria-pressed="false">Pause</button>
         <button id="saveLog" type="button" style="font-size:12px;padding:2px 8px">Save to file</button>

@@ -38,7 +38,7 @@ A loss of the internet link itself (Wi-Fi or cellular down) is not treated as a 
 - Bluetooth mode
 - The accuracy sentence `$PQTMEPE` to apps (on by default, setting `messageRatePQTM_PQTMEPE`), so apps such as PocketGNSS show the same accuracy as the display. Without it the firmware keeps PQTMEPE to itself and apps fall back to GST, which reads several times larger on the LG290P.
 
-It generates checksummed `$SPSET` commands. You can send them over USB (Web Serial), or copy them into a Bluetooth terminal; send `----------` first to enter command mode. It can also save the settings as a profile JSON to reuse on the next unit.
+It generates checksummed `$SPSET` commands. You can send them over USB (Web Serial), or copy them into a Bluetooth terminal. Over Bluetooth, command mode is entered with `+++` (no line ending, after 2 s with nothing sent), then Enter (main menu), then `+` (reply `COMMAND MODE`); over USB, Enter then `+`. It can also save the settings as a profile JSON to reuse on the next unit.
 
 The same settings also appear in the device's own Wi-Fi config page: **GNSS Configuration → Enable NTRIP Client → Correction Source Failover**.
 
