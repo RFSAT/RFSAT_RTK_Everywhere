@@ -40,6 +40,8 @@ A loss of the internet link itself (Wi-Fi or cellular down) is not treated as a 
 
 It generates checksummed `$SPSET` commands. You can send them over USB (Web Serial), or copy them into a Bluetooth terminal. Over Bluetooth, command mode is entered with `+++` (no line ending, after 2 s with nothing sent), then Enter (main menu), then `+` (reply `COMMAND MODE`); over USB, Enter then `+`. It can also save the settings as a profile JSON to reuse on the next unit.
 
+Every field and button shows a hint when hovered (or focused with the keyboard). The **? Help** button (or `?` / F1) opens searchable help on the common problems: entering command mode over Bluetooth and the terminal's line ending, the rover restarting when USB is opened, replies scrolling too fast, the app's accuracy differing from the display, RTK Fixed dropping to DGNSS when two correction streams arrive, Bluetooth pairing in the phone's settings, where the profile JSON is, how to read the firmware version, which firmware file goes on which unit, and choosing a correction source. Quick buttons ask the rover for the firmware versions and whether `$PQTMEPE` is on.
+
 The same settings also appear in the device's own Wi-Fi config page: **GNSS Configuration → Enable NTRIP Client → Correction Source Failover**.
 
 ### 3. Build and CI

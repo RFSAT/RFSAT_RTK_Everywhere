@@ -58,12 +58,34 @@ pre{margin:0;background:var(--console);color:var(--console-ink);font:12.5px/1.55
 .status.ok{color:var(--ok)} .status.err{color:var(--err)} .status.warn{color:var(--warn)}
 .note{font-size:13px;color:var(--muted);margin:0}
 .badge{font:500 11px var(--mono);border:1px solid var(--line);border-radius:3px;padding:0 5px;color:var(--muted)}
+/* hover hints */
+#tip{position:fixed;z-index:50;max-width:340px;background:var(--ink);color:var(--bg);font:13px/1.45 var(--body);padding:8px 10px;border-radius:5px;box-shadow:0 4px 14px rgba(0,0,0,.25);pointer-events:none;opacity:0;transition:opacity .12s}
+#tip.on{opacity:1}
+#tip code{font:12px var(--mono);background:rgba(127,127,127,.25);padding:0 3px;border-radius:2px;color:inherit}
+[data-tip]{cursor:help} input[data-tip],select[data-tip],button[data-tip]{cursor:auto} button[data-tip]{cursor:pointer}
+/* help */
+.hbtn{margin-left:auto;font:600 14px var(--body);border-color:var(--accent);color:var(--accent)}
+dialog#help{width:min(860px,calc(100vw - 32px));max-height:calc(100vh - 48px);border:1px solid var(--line);border-radius:8px;padding:0;background:var(--panel);color:var(--ink)}
+dialog#help::backdrop{background:rgba(0,0,0,.45)}
+.hhead{position:sticky;top:0;background:var(--panel);border-bottom:1px solid var(--line);padding:14px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;z-index:1}
+.hhead h2{font:700 22px var(--display);margin:0;flex:1 1 auto}
+.hhead input{flex:1 1 220px;width:auto}
+.hbody{padding:8px 16px 18px}
+.hbody details{border-bottom:1px solid var(--line);padding:8px 0}
+.hbody summary{font:600 15px var(--body);cursor:pointer}
+.hbody summary small{font:500 11px var(--mono);color:var(--muted);margin-left:6px}
+.hbody details > div{padding:6px 0 4px 2px;font-size:14px}
+.hbody ol,.hbody ul{margin:6px 0;padding-left:22px}
+.hbody p{margin:6px 0}
+.hbody code{font:13px var(--mono);background:var(--bg);border:1px solid var(--line);border-radius:3px;padding:0 4px}
+.hbody .none{color:var(--muted);padding:12px 0}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
 <div class="wrap">
   <header>
     <h1>RFSAT Rover Configurator</h1>
+    <button class="hbtn" id="helpBtn" type="button" aria-haspopup="dialog" data-tip="Common problems and how to solve them: command mode, USB restarts, accuracy differences, RTK dropping to DGNSS, Bluetooth pairing. Shortcut: <code>?</code> or F1.">? Help</button>
     <p>Builds the <code>$SPSET</code> command set for the RTK Everywhere RFSAT firmware: Wi-Fi networks, up to four NTRIP correction sources in priority order, Bluetooth and Galileo HAS fallback. Send it over USB from Chrome, or paste it into a Bluetooth terminal.</p>
   </header>
 
@@ -99,6 +121,7 @@ pre{margin:0;background:var(--console);color:var(--console-ink);font:12.5px/1.55
       <h2>Profile file</h2>
       <p class="hint">Save the form as JSON to reuse it on the next unit. Passwords are included, so keep the file private. Nothing is stored in the browser.</p>
       <div class="row">
+        <button id="saveProfile">Save profile JSON</button>
         <button id="export">Show profile JSON</button>
         <label class="check" style="text-transform:none">Load profile JSON <input type="file" id="import" accept=".json,application/json"></label>
       </div>
@@ -115,7 +138,7 @@ pre{margin:0;background:var(--console);color:var(--console-ink);font:12.5px/1.55
         <button id="send" disabled>Send to rover</button>
         <span class="status" id="status"></span>
       </div>
-      <p class="note">USB: Chrome or Edge, this file opened locally. Bluetooth terminal (e.g. Serial Bluetooth Terminal): with nothing sent for 2 s, send <code>+++</code> without a line ending (reply "Echoing all serial to BT device"), then Enter (the menu appears), then <code>+</code> without a line ending (reply "COMMAND MODE"), then paste the commands, each ending with Enter.</p>
+      <p class="note">USB: Chrome or Edge, this file opened locally. Bluetooth terminal (e.g. Serial Bluetooth Terminal): with nothing sent for 2 s, send <code>+++</code> without a line ending (reply "Echoing all serial to BT device"), then Enter (the menu appears), then <code>+</code> without a line ending (reply "COMMAND MODE"), then paste the commands, each ending with Enter. Problems? Press <b>? Help</b>.</p>
       <div class="paneh"><span>Rover replies</span><span class="row" style="gap:6px">
         <button id="pauseLog" type="button" style="font-size:12px;padding:2px 8px" aria-pressed="false">Pause</button>
         <button id="saveLog" type="button" style="font-size:12px;padding:2px 8px">Save to file</button>
@@ -131,11 +154,133 @@ pre{margin:0;background:var(--console);color:var(--console-ink);font:12.5px/1.55
         <button data-q="SPGET,enableNtripClient" disabled>NTRIP on?</button>
         <button data-q="SPGET,ntripClientCasterHost" disabled>Caster</button>
         <button data-q="SPGET,ntripClientMountPoint" disabled>Mount point</button>
+        <button data-q="SPGET,messageRatePQTM_PQTMEPE" disabled>EPE on?</button>
+        <button data-q="SPGET,espFirmwareVersion" disabled>Firmware</button>
+        <button data-q="SPGET,gnssFirmwareVersion" disabled>LG290P version</button>
         <button data-q="SPEXE,REBOOT" disabled>Restart</button>
       </div>
     </section>
   </div>
 </div>
+
+<div id="tip" role="tooltip" aria-hidden="true"></div>
+
+<dialog id="help" aria-labelledby="helpTitle">
+  <div class="hhead">
+    <h2 id="helpTitle">Help</h2>
+    <input id="helpFind" type="search" placeholder="Search help, e.g. accuracy, Bluetooth, restart" aria-label="Search help">
+    <button id="helpClose" type="button">Close</button>
+  </div>
+  <div class="hbody" id="helpBody">
+
+  <details open><summary>Getting started: configure a rover in five steps</summary><div>
+    <ol>
+      <li>Fill in your Wi-Fi networks (up to four, tried in order).</li>
+      <li>Fill in the correction sources: press a preset, then add the user and password your caster gave you. Source 1 is used first.</li>
+      <li>Check the receiver options. Keep <b>Accuracy sentence for apps</b> ticked if you use PocketGNSS or another app.</li>
+      <li>Press <b>Save profile JSON</b> so the same settings can be loaded for the next unit.</li>
+      <li>Send the commands: over USB with <b>Connect USB</b> then <b>Send to rover</b>, or over Bluetooth by copying them into a terminal (see the next topics). The rover saves them and restarts.</li>
+    </ol>
+    <p>Hover over any field or button to see what it does.</p>
+  </div></details>
+
+  <details><summary>Entering command mode over Bluetooth <small>+++ · nothing happens · reboot ignored</small></summary><div>
+    <p>The rover accepts <code>$SP…</code> commands only in its <b>command mode</b>. Anything sent outside it is ignored, including <code>$SPEXE,REBOOT</code>. If the rover "does not react" or "does not reboot", it was not in command mode.</p>
+    <ol>
+      <li>Connect a Bluetooth terminal app (e.g. Serial Bluetooth Terminal) to the rover. Close PocketGNSS first: only one app can be connected.</li>
+      <li>Set the line ending to <b>None</b> (see the next topic).</li>
+      <li>Send nothing for 2 seconds, then send <code>+++</code>. Reply: <i>Echoing all serial to BT device</i>.</li>
+      <li>Send an empty line (Enter). The main menu appears.</li>
+      <li>Send <code>+</code>. Reply: <i>COMMAND MODE</i>; the stream of NMEA sentences stops.</li>
+      <li>Set the line ending to <b>CR+LF</b> and send the commands, one line at a time or pasted together.</li>
+    </ol>
+    <p>The commands this page generates already carry their checksum (<code>*XX</code>). If you type a command yourself, use the box under <i>Rover replies</i>: it adds the checksum for you. The terminal does not.</p>
+  </div></details>
+
+  <details><summary>Setting the line ending in Serial Bluetooth Terminal</summary><div>
+    <p>Menu ☰ → <b>Settings</b> → <b>Send</b> tab → <b>Newline</b>: choose <b>None</b> for <code>+++</code> and <code>+</code>, and <b>CR+LF</b> for the <code>$SP…</code> commands. With None, the Enter step is done by pressing Send with an empty input field.</p>
+    <p>Other terminal apps have the same option, usually called "line ending", "newline" or "EOL".</p>
+  </div></details>
+
+  <details><summary>The rover restarts when I connect USB or send a command</summary><div>
+    <p>The Postcard's USB chip also drives the ESP32's reset and boot pins. Opening the USB port can restart the rover; you will see <code>rst:0x1 (POWERON_RESET)</code> and the start-up messages in <i>Rover replies</i>. A command sent while it starts is lost.</p>
+    <p>This page notices the restart, waits until the rover is running and sends again. If a send still fails, wait about 5 seconds after connecting and press the button again. Over Bluetooth this does not happen.</p>
+  </div></details>
+
+  <details><summary>The messages scroll too fast to read the reply</summary><div>
+    <p>Press <b>Pause</b> above <i>Rover replies</i>: the window stops moving while messages are still recorded, so you can select and copy text. <b>Save to file</b> stores the whole session in your Downloads folder.</p>
+    <p>In command mode the rover stops its NMEA stream, so its replies are easy to see there. Your own lines are shown with <code>&gt;</code> in front.</p>
+  </div></details>
+
+  <details><summary>Accuracy in the app differs from the rover's display</summary><div>
+    <p>The display shows the LG290P's own estimated error (<code>$PQTMEPE</code>, 2D). By default the rover does not send that sentence over Bluetooth, so apps use GST, a different and usually larger statistic.</p>
+    <ol>
+      <li>Keep <b>Accuracy sentence for apps</b> ticked and send the commands, or send only <code>$SPSET,messageRatePQTM_PQTMEPE,1*36</code>, <code>$SPEXE,SAVE*76</code> and <code>$SPEXE,REBOOT*76</code> in command mode.</li>
+      <li>Check with <b>EPE on?</b> (reply 1).</li>
+      <li>In PocketGNSS, Live then shows a "Receiver error (H / down)" row. PocketGNSS 1.13.4 or later shows exactly the display's figure.</li>
+    </ol>
+    <p>The two update once a second, not at the same instant, so a short difference while the value changes is normal. A PocketGNSS recording includes <code>accuracy.csv</code> with both values at every second.</p>
+  </div></details>
+
+  <details><summary>RTK Fixed drops to DGNSS or Float <small>two correction streams</small></summary><div>
+    <p>The most common cause is two correction streams reaching the receiver at once: the rover's own NTRIP client (over Wi-Fi) and a phone app relaying another caster over Bluetooth. Mixed RTCM from two bases breaks the RTK solution.</p>
+    <ul>
+      <li>Use one source: either the rover's own client (this page) or the phone's relay, not both.</li>
+      <li>PocketGNSS 1.13.2 or later does this by itself: with a rover that has its own NTRIP client, the relay waits while the rover's corrections are in use and takes over only when they stop.</li>
+      <li>Other causes: a base too far away (keep it within a few km for centimetre fixes; for EUREF choose the nearest station), sky view blocked, or the caster stream interrupted. The rover moves to the next source after 30 s without RTCM when <b>Failover</b> is on.</li>
+    </ul>
+  </div></details>
+
+  <details><summary>Bluetooth: the phone's settings show "disconnected" or cannot connect</summary><div>
+    <p>That is normal. The phone's Bluetooth settings can pair with the rover, but they do not open its data channel. The app does that.</p>
+    <ul>
+      <li><b>Classic (SPP)</b>, Android: pair once in the phone settings, then connect from the app. The settings keep showing "disconnected" or "paired".</li>
+      <li><b>BLE</b> (iOS, or Android apps that scan): do not pair in the settings. Find the rover with the app's scan and connect there. In PocketGNSS: Setup → Bluetooth LE → Scan → tap the rover → Connect; Live shows the position once data arrives.</li>
+      <li>If an earlier pairing gets in the way, unpair the rover in the phone settings and connect again from the app.</li>
+      <li>Only one app at a time can be connected to the rover.</li>
+    </ul>
+  </div></details>
+
+  <details><summary>Where is my profile JSON?</summary><div>
+    <p>This page never saves anything by itself and keeps nothing in the browser. Press <b>Save profile JSON</b>: the file goes to your Downloads folder. Move it to a private folder and load it next time with <b>Load profile JSON</b>.</p>
+    <p>The file contains Wi-Fi and caster passwords: do not share it, e-mail it or commit it to GitHub.</p>
+  </div></details>
+
+  <details><summary>Which firmware is on the rover?</summary><div>
+    <ul>
+      <li>Connect USB and press <b>Firmware</b> (ESP32 firmware, e.g. <code>d3.4-…</code> with the build date) or <b>LG290P version</b>.</li>
+      <li>Or look at the top of the main menu (Enter over USB, or <code>+++</code> then Enter over Bluetooth).</li>
+      <li>The ID in the top-left corner of the display (e.g. 7926) is the unit's Bluetooth ID, not a version.</li>
+    </ul>
+  </div></details>
+
+  <details><summary>Which firmware file goes on which unit?</summary><div>
+    <p>File names end with the prototype ID: <code>_V1</code> PicoRTK, <code>_V2</code> ESP32-C6, <code>_V3</code> Postcard with PostcardRTK, <code>_V4</code> Postcard with this RTK Everywhere firmware. Never flash a file whose ID does not match the unit.</p>
+    <p>For V4: <code>…_merged_V4.bin</code> at address 0x0 for a first install (it erases the settings); <code>…_V4.bin</code> at 0x10000 to update and keep the settings.</p>
+  </div></details>
+
+  <details><summary>Which correction source should I use?</summary><div>
+    <ul>
+      <li><b>Metrica VRS</b> (<code>MSM_VRS</code>): a virtual base at your position; needs <b>Send GGA position</b>. Usually the best choice.</li>
+      <li><b>Metrica nearest</b> (<code>MSM_NEAR</code>): the closest physical station.</li>
+      <li><b>EUREF</b>: free with an account; choose the mount point of the nearest station (e.g. <code>DYNG00GRC0</code> around Athens). A station 100 km or more away will rarely give a fixed solution.</li>
+      <li><b>Own base</b>: your own base station, best when it is within a few km.</li>
+    </ul>
+    <p>Put the source you trust most first; the rover returns to source 1 after the <b>Return to source 1</b> time.</p>
+  </div></details>
+
+  <details><summary>USB does not work at all</summary><div>
+    <ul>
+      <li>Use Chrome or Edge on a computer; Firefox and Safari do not support USB serial.</li>
+      <li>Open this file from your disk (or from its published page). The USB port picker lists the rover as a CH342 / USB serial device; the Postcard shows two ports: try the first, then the other.</li>
+      <li>Close other programs using the port (Arduino IDE, a terminal, the flasher).</li>
+      <li>Use a USB data cable, not a charge-only one.</li>
+    </ul>
+  </div></details>
+
+  <p class="none" id="helpNone" hidden>No topic matches. Try another word.</p>
+  </div>
+</dialog>
 
 <script>
 const SRC_N = 4;
@@ -207,7 +352,7 @@ function render(){
   $("count").textContent = L.length + " lines";
 }
 
-function formState(){ const o={}; document.querySelectorAll("input:not([type=file]),select").forEach(e=>o[e.id]= e.type=="checkbox"? e.checked : e.value); return o; }
+function formState(){ const o={}; document.querySelectorAll(".col input:not([type=file]),.col select").forEach(e=>o[e.id]= e.type=="checkbox"? e.checked : e.value); return o; }
 function setForm(o){ for (const k in o){ const e=$(k); if(!e) continue; if(e.type=="checkbox") e.checked=!!o[k]; else e.value=o[k]; } render(); }
 
 document.addEventListener("click", e=>{
@@ -324,7 +469,110 @@ $("send").onclick = async () => {
   $("send").disabled=false;
 };
 
-buildWifi(); buildSources(); render();
+// ---- Hover hints: data-tip on the field's label (or the element itself), shown on hover and on keyboard focus ----
+const TIPS = {
+  failover: "When the current source fails (no connection, login or mount point rejected, or 30 s without RTCM), switch to the next source in about 2 s.",
+  gga: "Send the rover's position to the caster every few seconds. Needed for VRS mount points (e.g. Metrica <code>MSM_VRS</code>) and for 'nearest station' mount points.",
+  failback: "After this many seconds on an alternate source, try source 1 again. 0 = stay on the alternate until it fails.",
+  ppp: "What the rover does when no correction stream is available: Galileo HAS (free satellite corrections, about 20 cm after converging) or standalone GNSS (1–2 m).",
+  bt: "Classic SPP + BLE suits most phones. Classic only: Android apps that pair in the phone settings. BLE only: iPhone. Phones connect from the app, not from the Bluetooth settings.",
+  epe: "Sends <code>$PQTMEPE</code> to apps, so they show the same accuracy as the rover's display. Without it apps use GST, a different figure.",
+  saveProfile: "Download all fields, passwords included, as a JSON file to reuse on the next unit. Keep it private.",
+  export: "Show the profile JSON in the reply window to check or copy it.",
+  "import": "Load a profile JSON saved earlier. It fills every field; nothing is sent until you press Send to rover.",
+  copy: "Copy all command lines (CR+LF endings) to paste into a Bluetooth terminal in command mode.",
+  connect: "Pick the rover's USB port (Chrome or Edge). Opening the port may restart the rover: this page waits for it.",
+  send: "Enter command mode and send every line. The rover saves the settings and restarts with them.",
+  out: "The generated <code>$SPSET</code> commands with their checksums. Lines starting with # are warnings, not sent.",
+  log: "Everything the rover sends over USB. Your own lines are shown with <code>&gt;</code>.",
+  pauseLog: "Freeze the window to read or copy text. Messages are still recorded.",
+  saveLog: "Save the whole session to a text file in Downloads, e.g. to send it for support.",
+  clearLog: "Empty the reply window.",
+  cmdLine: "Type one command, e.g. <code>SPGET,messageRatePQTM_PQTMEPE</code>, and press Enter. <code>$</code> and the checksum are added, and command mode is opened first.",
+  cmdSend: "Send the command typed on the left.",
+  helpBtn: null
+};
+const QTIPS = {
+  "SPGET,wifiNetwork_0SSID":"Ask for the name of Wi-Fi network 1.",
+  "SPGET,enableNtripClient":"Is the rover's own NTRIP client on? (true / false)",
+  "SPGET,ntripClientCasterHost":"Caster host of source 1.",
+  "SPGET,ntripClientMountPoint":"Mount point of source 1.",
+  "SPGET,messageRatePQTM_PQTMEPE":"Is the accuracy sentence for apps on? 1 = yes, 0 = no.",
+  "SPGET,espFirmwareVersion":"The rover's firmware version and build date.",
+  "SPGET,gnssFirmwareVersion":"The LG290P receiver's firmware version.",
+  "SPEXE,REBOOT":"Restart the rover with its saved settings."
+};
+const PTIPS = {
+  "Own base":"Your own base station: fill in its host and mount point. Best within a few km.",
+  "Metrica VRS":"Metrica SmartNet Greece, virtual base at your position (MSM_VRS). Needs Send GGA position and your Metrica account.",
+  "Metrica nearest":"Metrica SmartNet Greece, nearest physical station (MSM_NEAR).",
+  "EUREF":"EUREF-IP caster: add the mount point of the nearest station (e.g. DYNG00GRC0 near Athens) and your account.",
+  "":"Empty this source."
+};
+function tipTarget(el, t){ if(!el||!t) return; (el.closest("label")||el).dataset.tip = t; }
+function applyTips(){
+  for (const k in TIPS) tipTarget($(k), TIPS[k]);
+  for (let i=0;i<4;i++){
+    tipTarget($("ssid"+i), `Name of Wi-Fi network ${i+1}, exactly as the phone or router shows it (case matters). The rover tries the networks in order.`);
+    tipTarget($("wpw"+i), "Wi-Fi password. Leave empty for an open network.");
+  }
+  for (let i=0;i<SRC_N;i++){
+    tipTarget($("host"+i), "Caster address without http://, e.g. <code>gr.nrtk.eu</code> or <code>euref-ip.net</code>.");
+    tipTarget($("port"+i), "Caster port: usually 2101; Metrica uses 7801.");
+    tipTarget($("mount"+i), "Mount point (stream name) on the caster, e.g. <code>MSM_VRS</code>. Case matters.");
+    tipTarget($("user"+i), "Your caster account name.");
+    tipTarget($("pw"+i), "Your caster password. It is written into the commands and the profile file: keep both private.");
+  }
+  document.querySelectorAll("#quick button").forEach(b=>{ if(QTIPS[b.dataset.q]) b.dataset.tip=QTIPS[b.dataset.q]; });
+  document.querySelectorAll("button[data-preset]").forEach(b=>{ b.dataset.tip = PTIPS[b.dataset.preset] ?? ""; });
+}
+const tip=$("tip"); let tipEl=null, tipTimer=0;
+function showTip(el){
+  tipEl=el; tip.innerHTML=el.dataset.tip; tip.classList.add("on"); tip.setAttribute("aria-hidden","false");
+  const r=el.getBoundingClientRect(), w=tip.offsetWidth, h=tip.offsetHeight, vw=innerWidth, vh=innerHeight;
+  let x=Math.min(Math.max(8,r.left), vw-w-8), y=r.bottom+6;
+  if (y+h>vh-8) y=Math.max(8, r.top-h-6);
+  tip.style.left=x+"px"; tip.style.top=y+"px";
+}
+function hideTip(){ clearTimeout(tipTimer); tipEl=null; tip.classList.remove("on"); tip.setAttribute("aria-hidden","true"); }
+document.addEventListener("mouseover", e=>{ const el=e.target.closest("[data-tip]"); if(el===tipEl) return; hideTip(); if(el&&el.dataset.tip) tipTimer=setTimeout(()=>showTip(el),350); });
+document.addEventListener("focusin", e=>{ const el=e.target.closest("[data-tip]"); hideTip(); if(el&&el.dataset.tip&&e.target.matches(":focus-visible")) showTip(el); });
+document.addEventListener("focusout", hideTip);
+addEventListener("scroll", hideTip, true);
+
+// ---- Help ----
+const help=$("help");
+function openHelp(){ hideTip(); if(!help.open) help.showModal(); $("helpFind").focus(); }
+$("helpBtn").onclick=openHelp;
+$("helpClose").onclick=()=>help.close();
+help.addEventListener("click", e=>{ if(e.target===help) help.close(); });
+document.addEventListener("keydown", e=>{
+  if (e.key==="Escape") hideTip();
+  const typing=/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement?.tagName||"");
+  if (e.key==="F1" || (e.key==="?" && !typing)) { e.preventDefault(); openHelp(); }
+});
+$("helpFind").addEventListener("input", e=>{
+  e.stopPropagation();
+  const words=e.target.value.toLowerCase().split(/\s+/).filter(Boolean); let shown=0;
+  document.querySelectorAll("#helpBody details").forEach(d=>{
+    const hit=words.every(w=>d.textContent.toLowerCase().includes(w));
+    d.hidden=!hit; if(hit) shown++; d.open = hit && words.length>0 ? true : d.open;
+  });
+  $("helpNone").hidden=shown>0;
+});
+$("helpFind").addEventListener("change", e=>e.stopPropagation());
+$("helpFind").addEventListener("keydown", e=>{ if(e.key==="Escape"){ e.preventDefault(); help.close(); } });
+
+// ---- Save the profile as a file ----
+$("saveProfile").onclick = () => {
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(formState(),null,2)],{type:"application/json"}));
+  a.download="RFSAT_Postcard_profile.private.json"; document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);
+  status("Saved RFSAT_Postcard_profile.private.json to Downloads: move it to a private folder","ok");
+};
+
+buildWifi(); buildSources(); applyTips(); render();
 </script>
 
 </body>
