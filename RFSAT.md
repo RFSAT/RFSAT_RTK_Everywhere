@@ -36,6 +36,7 @@ A loss of the internet link itself (Wi-Fi or cellular down) is not treated as a 
 - GGA, failover and fail-back
 - HAS fallback
 - Bluetooth mode
+- The accuracy sentence `$PQTMEPE` to apps (on by default, setting `messageRatePQTM_PQTMEPE`), so apps such as PocketGNSS show the same accuracy as the display. Without it the firmware keeps PQTMEPE to itself and apps fall back to GST, which reads several times larger on the LG290P.
 
 It generates checksummed `$SPSET` commands. You can send them over USB (Web Serial), or copy them into a Bluetooth terminal; send `----------` first to enter command mode. It can also save the settings as a profile JSON to reuse on the next unit.
 

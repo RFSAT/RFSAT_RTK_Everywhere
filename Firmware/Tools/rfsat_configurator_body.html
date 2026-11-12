@@ -78,6 +78,7 @@ pre{margin:0;background:var(--console);color:var(--console-ink);font:12.5px/1.55
       <div class="grid">
         <label>Without internet<select id="ppp"><option value="2" selected>Galileo HAS (~20 cm)</option><option value="0">Standalone only</option></select></label>
         <label>Bluetooth<select id="bt"><option value="2" selected>Classic SPP + BLE</option><option value="0">Classic SPP only (Android)</option><option value="1">BLE only (iOS)</option></select></label>
+        <label class="check"><input type="checkbox" id="epe" checked> Accuracy sentence for apps ($PQTMEPE, the figure on the display)</label>
       </div>
     </section>
 
@@ -164,7 +165,8 @@ function commands(){
   if (!valid) warn.push("No complete correction source yet: fill host, port and mount point.");
   L.push(cmd("enableNtripClient", valid? "true":"false"), cmd("ntripClientTransmitGGA", $("gga").checked), cmd("ntripClientFailover", $("failover").checked),
          cmd("ntripClientFailbackInterval", Math.max(0,Math.min(65535,parseInt($("failback").value)||0))),
-         cmd("pppMode", $("ppp").value), cmd("bluetoothRadioType", $("bt").value), exe("SAVE"), exe("APPLY"));
+         cmd("pppMode", $("ppp").value), cmd("bluetoothRadioType", $("bt").value),
+         cmd("messageRatePQTM_PQTMEPE", $("epe").checked ? 1 : 0), exe("SAVE"), exe("APPLY"));
   return {L, warn, valid};
 }
 function render(){
