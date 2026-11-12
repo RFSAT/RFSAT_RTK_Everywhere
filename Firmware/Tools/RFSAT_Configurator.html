@@ -278,15 +278,30 @@ async function enterCmd(){
   }
   cmdMode=true; status("Command mode","ok");
 }
-// One command line: "$" and the checksum are added when missing
+// The Postcard's USB chip drives the ESP32's reset and boot pins: opening the port can restart the rover, and a
+// command sent while it boots is lost. Seen as the ESP32 boot banner ("rst:0x") in the log.
+const BOOT_RE=/rst:0x[0-9a-f]+ \(|ets [A-Z][a-z]{2} \d/;
+async function waitForBoot(from){
+  if(!BOOT_RE.test(logAll.slice(from))) return false;
+  status("The rover restarted (opening USB can do that). Waiting until it has started…","warn");
+  for(let i=0;i<250&&!/Rover configured|STATE_ROVER_(NO_FIX|FIX|RTK)|Base configured/i.test(logAll.slice(from));i++) await sleep(100);
+  await sleep(1500); cmdMode=false; return true;
+}
+// One command line: "$" and the checksum are added when missing. Sent again once if the rover restarted meanwhile.
 async function sendLine(t){
   t=t.trim(); if(!t||!writer) return;
   if(t.startsWith("$")) t=t.slice(1);
   if(!/\*[0-9A-F]{2}$/i.test(t)) t=`${t}*${cks(t)}`;
-  await enterCmd();
-  logAdd(`\n> $${t}\n`);
-  await tx(`$${t}\r\n`);
-  if(/^SPEXE,(REBOOT|EXIT)/i.test(t)) cmdMode=false;
+  for(let attempt=0;attempt<2;attempt++){
+    const mark=logAll.length;
+    await enterCmd();
+    logAdd(`\n> $${t}\n`);
+    await tx(`$${t}\r\n`);
+    if(/^SPEXE,(REBOOT|EXIT)/i.test(t)) { cmdMode=false; return; }
+    await sleep(1500);
+    if(!(await waitForBoot(mark))) { status("Sent","ok"); return; }
+  }
+  status("The rover restarted twice: send the line again when it is running","err");
 }
 $("cmdSend").onclick = () => sendLine($("cmdLine").value);
 $("cmdLine").addEventListener("keydown", e => { if(e.key==="Enter") sendLine($("cmdLine").value); });
@@ -297,8 +312,13 @@ $("send").onclick = async () => {
   $("send").disabled=true;
   try {
     status("Opening command mode…");
+    let mark=logAll.length;
     await enterCmd();
-    for (let i=0;i<L.length;i++){ status(`Sending ${i+1}/${L.length}`); await tx(L[i] + "\r\n"); await sleep(120); }
+    if (await waitForBoot(mark)) { mark=logAll.length; await enterCmd(); } // restarted on opening: start again
+    for (let i=0;i<L.length;i++){
+      status(`Sending ${i+1}/${L.length}`); await tx(L[i] + "\r\n"); await sleep(120);
+      if (BOOT_RE.test(logAll.slice(mark))) { await waitForBoot(mark); status("The rover restarted while sending: press Send to rover again","err"); $("send").disabled=false; return; }
+    }
     cmdMode=false; status("Sent. The rover saves the settings and restarts with them.","ok");
   } catch(e){ status("Send failed: "+e.message,"err"); }
   $("send").disabled=false;
