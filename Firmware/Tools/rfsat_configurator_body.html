@@ -241,9 +241,19 @@ dialog#help::backdrop{background:rgba(0,0,0,.45)}
 
   <details><summary>Which firmware is on the rover?</summary><div>
     <ul>
-      <li>Connect USB and press <b>Firmware</b> (ESP32 firmware, e.g. <code>d3.4-…</code> with the build date) or <b>LG290P version</b>.</li>
-      <li>Or look at the top of the main menu (Enter over USB, or <code>+++</code> then Enter over Bluetooth).</li>
+      <li>The second boot screen shows the RFSAT release, e.g. <code>v3.4-r4 96c1dc8</code> (release r4, commit 96c1dc8). A unit showing a lower release number needs updating; <code>dev</code> means a test build.</li>
+      <li>Or connect USB and press <b>Firmware</b> (the reply ends with the same RFSAT release) or <b>LG290P version</b>.</li>
+      <li>Or look at the top of the main menu: "RFSAT firmware v3.4-r4 … (built …)" (Enter over USB, or <code>+++</code> then Enter over Bluetooth).</li>
       <li>The ID in the top-left corner of the display (e.g. 7926) is the unit's Bluetooth ID, not a version.</li>
+    </ul>
+  </div></details>
+
+  <details><summary>What C: and M: on the display mean <small>caster · mount point</small></summary><div>
+    <p>From firmware r4, while the rover's own NTRIP client is connected, the rover screen shows the correction source in use: <b>C:</b> the caster (Metrica SmartNet, EUREF-IP, RTK2go by name; any other caster, e.g. your own base, by its address) and <b>M:</b> the mount point, e.g. <code>MSM_VRS</code>.</p>
+    <ul>
+      <li>When the rover moves to another source (failover), the two rows change with it, so you can see which of your four sources is working.</li>
+      <li>The rows are empty while the client is connecting or has no source, and when corrections come from a phone app over Bluetooth: the rover does not know which caster the phone uses.</li>
+      <li>Names longer than 19 characters are cut.</li>
     </ul>
   </div></details>
 

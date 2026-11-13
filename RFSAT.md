@@ -40,11 +40,18 @@ A loss of the internet link itself (Wi-Fi or cellular down) is not treated as a 
 
 It generates checksummed `$SPSET` commands. You can send them over USB (Web Serial), or copy them into a Bluetooth terminal. Over Bluetooth, command mode is entered with `+++` (no line ending, after 2 s with nothing sent), then Enter (main menu), then `+` (reply `COMMAND MODE`); over USB, Enter then `+`. It can also save the settings as a profile JSON to reuse on the next unit.
 
-Every field and button shows a hint when hovered (or focused with the keyboard). The **? Help** button (or `?` / F1) opens searchable help on the common problems: entering command mode over Bluetooth and the terminal's line ending, the rover restarting when USB is opened, replies scrolling too fast, the app's accuracy differing from the display, RTK Fixed dropping to DGNSS when two correction streams arrive, Bluetooth pairing in the phone's settings, where the profile JSON is, how to read the firmware version, which firmware file goes on which unit, and choosing a correction source. Quick buttons ask the rover for the firmware versions and whether `$PQTMEPE` is on.
+Every field and button shows a hint when hovered (or focused with the keyboard). The **? Help** button (or `?` / F1) opens searchable help on the common problems: entering command mode over Bluetooth and the terminal's line ending, the rover restarting when USB is opened, replies scrolling too fast, the app's accuracy differing from the display, RTK Fixed dropping to DGNSS when two correction streams arrive, Bluetooth pairing in the phone's settings, where the profile JSON is, how to read the firmware version, what C: and M: on the display mean, which firmware file goes on which unit, and choosing a correction source. Quick buttons ask the rover for the firmware versions and whether `$PQTMEPE` is on.
 
 The same settings also appear in the device's own Wi-Fi config page: **GNSS Configuration → Enable NTRIP Client → Correction Source Failover**.
 
-### 3. Build and CI
+### 3. RFSAT branding, version and display
+
+- **Boot screens** (from rfsat-v3.4-r3): the first shows RFSAT LIMITED (`icons_rfsat.h`, made by `Firmware/Tools/rfsat_logo.py`, which can also convert an image), the second RFSAT Limited, RTK, Postcard and the firmware version.
+- **Firmware version**: `v3.4-r<n> <commit>`, e.g. `v3.4-r4 96c1dc8`, on the second boot screen, at the top of the main menu ("RFSAT firmware … (built …)") and appended to `SPGET,espFirmwareVersion`. The build workflow writes `rfsat_version.h` from the release tag (`rfsat-v3.4-r4` gives `r4`); other builds show `dev`.
+- **Brand** `BRAND_RFSAT` for the Postcard: the Bluetooth name is `RFSAT Postcard-xxxxxx` (re-pair after updating from a SparkFun-branded build). No setting changed, so updates at 0x10000 keep the settings.
+- **Caster and mount point on the rover screen** (from rfsat-v3.4-r4, 128x64 display): two rows between the header icons and the accuracy row while the rover's own NTRIP client is connected: `C:` the caster (by name for known casters: gr.nrtk.eu Metrica SmartNet, euref-ip.net EUREF-IP, rtk2go.com RTK2go, caster.centipede.fr Centipede; any other by its address) and `M:` the mount point; 21 characters each, longer text is cut. The accuracy / satellite row moves down 8 pixels (10-pixel row pitch). Empty while the client is not connected and when a phone relays corrections over Bluetooth. The names are in `rfsatKnownCasters[]` in `Display.ino`.
+
+### 4. Build and CI
 
 `.github/workflows/rfsat-build.yml` does the following:
 
