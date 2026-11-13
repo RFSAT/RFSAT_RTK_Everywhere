@@ -567,10 +567,20 @@ $("helpFind").addEventListener("change", e=>e.stopPropagation());
 $("helpFind").addEventListener("keydown", e=>{ if(e.key==="Escape"){ e.preventDefault(); help.close(); } });
 
 // ---- Save the profile as a file ----
-$("saveProfile").onclick = () => {
+$("saveProfile").onclick = async () => {
+  const json=JSON.stringify(formState(),null,2), name="RFSAT_Postcard_profile.private.json";
+  // Published page (claude.ai): the viewer's download goes through the platform; a local file uses a plain link
+  if (window.claude && window.claude.use) {
+    const dl = await window.claude.use("downloads").catch(()=>null);
+    if (dl) {
+      try { await dl.save({filename:name, data:json}); status("Saved "+name+": move it to a private folder","ok"); }
+      catch(e){ status(e && e.code==="declined" ? "Not saved" : "Could not save: "+((e&&e.message)||e),"warn"); }
+      return;
+    }
+  }
   const a=document.createElement("a");
-  a.href=URL.createObjectURL(new Blob([JSON.stringify(formState(),null,2)],{type:"application/json"}));
-  a.download="RFSAT_Postcard_profile.private.json"; document.body.appendChild(a); a.click();
+  a.href=URL.createObjectURL(new Blob([json],{type:"application/json"}));
+  a.download=name; document.body.appendChild(a); a.click();
   setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);
   status("Saved RFSAT_Postcard_profile.private.json to Downloads: move it to a private folder","ok");
 };
