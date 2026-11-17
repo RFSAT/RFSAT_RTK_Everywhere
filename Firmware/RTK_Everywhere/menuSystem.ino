@@ -202,6 +202,12 @@ void menuSystem()
         systemPrintf("u) Printed measurement units: %s\r\n",
                      measurementScaleTable[measurementScaleToIndex(settings.measurementScale)].measurementScaleName);
 
+        if (present.display_type == DISPLAY_128x64)
+        {
+            const char *coordModes[] = {"Off", "Alternate with caster", "Always"};
+            systemPrintf("k) Coordinates on display: %s\r\n", coordModes[settings.displayCoordinates % 3]);
+        }
+
         systemPrintf("z) Set time zone offset: %02d:%02d:%02d\r\n", settings.timeZoneHours, settings.timeZoneMinutes,
                      settings.timeZoneSeconds);
 
@@ -300,6 +306,11 @@ void menuSystem()
             settings.measurementScale += 1;
             if (settings.measurementScale >= MEASUREMENT_UNITS_MAX)
                 settings.measurementScale = 0;
+        }
+        else if ((incoming == 'k') && (present.display_type == DISPLAY_128x64))
+        {
+            settings.displayCoordinates = (settings.displayCoordinates + 1) % 3; // Off -> Alternate -> Always
+            forceDisplayUpdate = true;
         }
         else if (incoming == 'z')
         {

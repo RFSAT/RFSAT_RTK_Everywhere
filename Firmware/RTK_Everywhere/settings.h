@@ -830,6 +830,7 @@ struct Settings
 
     // Display
     uint8_t displayContrast = 0xCF; // OLED contrast 0-255 (RFSAT); lower = dimmer
+    uint8_t displayCoordinates = 1; // RFSAT, 128x64 rover screen: 0 = off (caster / mount point), 1 = alternate every 4 s, 2 = always
 
     // Battery
     bool enablePrintBatteryMessages = true;
@@ -1461,6 +1462,7 @@ const RTK_Settings_Entry rtkSettingsEntries[] =
 
     // Display
     { 0, 1, 0, 1, 1, 0, 1, ALL, 0, _uint8_t,  0, & settings.displayContrast, "displayContrast", displayCmdUpdateContrast, },
+    { 0, 1, 0, 1, 1, 0, 1, ALL, 0, _uint8_t,  0, & settings.displayCoordinates, "displayCoordinates", nullptr, },
 
     // Battery
     { 0, 0, 0, 0, 1, 1, 1, ALL, 1, _bool,     0, & settings.enablePrintBatteryMessages, "enablePrintBatteryMessages", nullptr, },

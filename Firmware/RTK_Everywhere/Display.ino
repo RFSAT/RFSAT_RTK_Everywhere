@@ -3154,12 +3154,18 @@ void printFittedText(const char *text, uint8_t xPos, uint8_t yPos, uint8_t charW
     theDisplay->print(printThis);
 }
 
-// RFSAT: the caster and mount point the NTRIP client is using, on two rows of the 128x64 rover screen between the
-// header icons and the accuracy / satellite row (moved down by rfsatRoverRowShift):
+// RFSAT: two rows of the 128x64 rover screen between the header icons and the accuracy / satellite row (moved down by
+// rfsatRoverRowShift), at y 14 and 24 (5x7 font, 21 characters; the accuracy row at 34: a regular 10-pixel pitch).
+// They show the caster and mount point the NTRIP client is using:
 //   C:Metrica SmartNet     caster: known casters by name, any other by its host name or address
 //   M:MSM_VRS              mount point
-// Rows at y 14 and 24 (5x7 font, 21 characters), the accuracy row at 34: a regular 10-pixel pitch. Nothing is shown
-// while the client is not connected (corrections from a phone over Bluetooth are not named).
+// and/or the position (settings.displayCoordinates: 0 = caster only, 1 = alternate every 4 s, 2 = position only):
+//   N 37.9838412
+//   E 23.7275388
+// The position gets as many decimals as its horizontal accuracy justifies (7 = 1 cm for RTK Fixed, down to 4), so
+// the screen never shows more precision than the receiver has; "--" without a fix. The caster is not shown while
+// the client is not connected (corrections from a phone over Bluetooth are not named): then the position is shown
+// unless the setting is off.
 static const struct
 {
     const char *host;
@@ -3169,37 +3175,95 @@ static const struct
     {"rtk2go.com", "RTK2go"},           {"caster.centipede.fr", "Centipede"},
 };
 
+// Decimals of a degree that match a horizontal accuracy (1e-7 degree of latitude is about 1.1 cm)
+static int rfsatCoordDecimals(float hAccM)
+{
+    if (hAccM <= 0.0f)
+        return 4; // Unknown
+    if (hAccM < 0.05f)
+        return 7;
+    if (hAccM < 0.5f)
+        return 6;
+    if (hAccM < 5.0f)
+        return 5;
+    return 4;
+}
+
+static void rfsatPrintCoordinates()
+{
+    char line[32];
+    if ((gnss == nullptr) || (systemState == STATE_ROVER_NO_FIX) || (gnss->isFixed() == false))
+    {
+        theDisplay->setCursor(0, 14);
+        theDisplay->print("Lat --");
+        theDisplay->setCursor(0, 24);
+        theDisplay->print("Lon --");
+        return;
+    }
+    int dec = rfsatCoordDecimals(gnss->getHorizontalAccuracy());
+    double lat = gnss->getLatitude();
+    double lon = gnss->getLongitude();
+    snprintf(line, sizeof(line), "%c %.*f", (lat < 0) ? 'S' : 'N', dec, fabs(lat));
+    theDisplay->setCursor(0, 14);
+    theDisplay->print(line);
+    snprintf(line, sizeof(line), "%c %.*f", (lon < 0) ? 'W' : 'E', dec, fabs(lon));
+    theDisplay->setCursor(0, 24);
+    theDisplay->print(line);
+}
+
 void displayNtripSource()
 {
-#ifdef COMPILE_NTRIP_CLIENT
     if (present.display_type != DISPLAY_128x64)
         return;
-    if (ntripClientIsConnected() == false)
-        return;
 
-    NTRIP_SOURCE *src = ntripSrc();
-    if (src == nullptr || src->host == nullptr || src->mount == nullptr)
-        return;
+    theDisplay->setFont(QW_FONT_5X7, QW_EP_FONT_5X7); // Smallest font
+    uint8_t mode = settings.displayCoordinates;
 
-    const char *name = src->host;
-    for (int i = 0; i < (int)(sizeof(rfsatKnownCasters) / sizeof(rfsatKnownCasters[0])); i++)
-        if (strcasecmp(src->host, rfsatKnownCasters[i].host) == 0)
-            name = rfsatKnownCasters[i].name;
+    const char *casterName = nullptr;
+    const char *mount = nullptr;
+#ifdef COMPILE_NTRIP_CLIENT
+    if (ntripClientIsConnected())
+    {
+        NTRIP_SOURCE *src = ntripSrc();
+        if (src != nullptr && src->host != nullptr && src->mount != nullptr)
+        {
+            casterName = src->host;
+            mount = src->mount;
+            for (int i = 0; i < (int)(sizeof(rfsatKnownCasters) / sizeof(rfsatKnownCasters[0])); i++)
+                if (strcasecmp(src->host, rfsatKnownCasters[i].host) == 0)
+                    casterName = rfsatKnownCasters[i].name;
+        }
+    }
+#endif // COMPILE_NTRIP_CLIENT
+
+    bool showCoords;
+    if (mode == 0)
+        showCoords = false;
+    else if (mode == 2 || casterName == nullptr)
+        showCoords = true;
+    else
+        showCoords = ((millis() / 4000) % 2) == 1; // Alternate: caster 4 s, position 4 s
+
+    if (showCoords)
+    {
+        rfsatPrintCoordinates();
+        return;
+    }
+    if (casterName == nullptr)
+        return;
 
     const uint8_t maxChars = 128 / 6; // 5x7 font: 6 pixels per character
     char line[64];
-    theDisplay->setFont(QW_FONT_5X7, QW_EP_FONT_5X7); // Smallest font
 
-    snprintf(line, sizeof(line), "C:%s", name);
+    snprintf(line, sizeof(line), "C:%s", casterName);
     line[maxChars] = '\0'; // cut what does not fit
     theDisplay->setCursor(0, 14);
     theDisplay->print(line);
 
-    snprintf(line, sizeof(line), "M:%s", src->mount);
+    snprintf(line, sizeof(line), "M:%s", mount);
     line[maxChars] = '\0';
     theDisplay->setCursor(0, 24);
     theDisplay->print(line);
-#endif // COMPILE_NTRIP_CLIENT
 }
 
 void displayFullIPAddress(std::vector<iconPropertyBlinking> *iconList) // Bottom left - 128x64 only
