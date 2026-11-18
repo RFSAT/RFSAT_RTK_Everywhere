@@ -52,7 +52,15 @@ The same settings also appear in the device's own Wi-Fi config page: **GNSS Conf
 - **Caster and mount point on the rover screen** (from rfsat-v3.4-r4, 128x64 display): two rows between the header icons and the accuracy row while the rover's own NTRIP client is connected: `C:` the caster (by name for known casters: gr.nrtk.eu Metrica SmartNet, euref-ip.net EUREF-IP, rtk2go.com RTK2go, caster.centipede.fr Centipede; any other by its address) and `M:` the mount point; 21 characters each, longer text is cut. The accuracy / satellite row moves down 8 pixels (10-pixel row pitch). Empty while the client is not connected and when a phone relays corrections over Bluetooth. The names are in `rfsatKnownCasters[]` in `Display.ino`.
 - **Coordinates on the rover screen** (from rfsat-v3.4-r5, 128x64 display): latitude and longitude (`N 37.9838412` / `E 23.7275388`) on the same two rows. Setting `displayCoordinates` (serial menu System → `k`, Configurator *Coordinates on display*, or `$SPSET,displayCoordinates,<0|1|2>`): 1 = alternate with caster / mount point every 4 s (default; position only while no caster is connected), 2 = position only, 0 = off (caster / mount point only). The decimals follow the horizontal accuracy so the screen never claims more precision than the receiver has: 7 below 5 cm (about 1 cm, RTK Fixed), 6 below 50 cm (RTK Float, HAS), 5 below 5 m (SBAS, GNSS), otherwise 4; `Lat --` / `Lon --` without a fix.
 
-### 4. Build and CI
+### 4. V8: IM19 tilt compensation (listen-only), from rfsat-v3.4-r6
+
+V8 is V4 plus a SparkFun 9DoF IMU Breakout - IM19 (SEN-30381) under the Postcard. It runs the same firmware (the release also carries the files under `_V8` names).
+
+- **Wiring.** Postcard JST (LG290P UART3) pin 2 (LG-TXD3) through 1 kΩ to the IM19 **RXD2** header pin (the IM19 takes GNSS data on UART2); IM19 **TXD1** (binary NAVI) to the Postcard PTH pin **ISR** (LG-EVENT, ESP32 IO8; the LG290P EVENT input is unused); Postcard **STAT2** (LG-PPS) to the IM19 **PPS** pin; power from the Postcard 3V3 through the JST pin 1 (both VCC/VSEL jumpers at 3.3 V) with the IM19 **3V3_EN** tied to GND (its own regulator off), and GND. The IM19's CH342 must be isolated in operation (CH342_EN low; RUN/CFG switch), otherwise it fights the GNSS data on RXD2.
+- **Listen-only.** No ESP32 pin is free for TX, so the firmware never sends the IM19 commands. It detects the IM19 by its NAVI frames on IO8 (once, at the first boot; System → Operation → 10 forces a new detection), then reads them; the LG290P is set to GGA, RMC and GST at 5 Hz on UART3 (115200 bd) and the measurement rate to 5 Hz, as on the Facet FP. Tilt-compensated positions replace GGA/RMC/GNS/GLL once the IM19 reports "correcting".
+- **IM19 setup (once, over its USB-C, CFG position):** `AT+LOAD_DEFAULT`, `AT+GNSS_CARD=OEM`, `AT+GNSS_PORT=PHYSICAL_UART2`, `AT+NAVI_OUTPUT=UART1,ON`, `AT+SET_PPS_EDGE=RISING`, `AT+LEVER_ARM=x,y,z` (IM19 to antenna phase centre), `AT+CLUB_VECTOR=0,0,<pole length + antenna height>`, `AT+INSTALL_ANGLE=...` if not mounted components-up and aligned, `AT+WORK_MODE=408`, `AT+AHRS=ENABLE`, `AT+SAVE_ALL`. A different pole length needs this again.
+
+### 5. Build and CI
 
 `.github/workflows/rfsat-build.yml` does the following:
 

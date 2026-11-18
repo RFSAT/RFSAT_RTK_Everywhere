@@ -39,6 +39,40 @@ Tilt.ino
 
 IM19 * tiltSensor;
 
+// RFSAT V8 (RTK Postcard + Portability Shield + SparkFun IM19 breakout): the IM19 is listen-only. Its NAVI output
+// (UART1 TX) reaches ESP32 IO8 through the Postcard's 'ISR' PTH pin; no ESP32 pin is free to send it commands.
+// The IM19 is therefore configured once from a PC over its own USB-C (AT+GNSS_CARD=OEM, AT+GNSS_PORT=PHYSICAL_UART2,
+// AT+NAVI_OUTPUT=UART1,ON, AT+SET_PPS_EDGE=RISING, AT+LEVER_ARM, AT+CLUB_VECTOR, AT+INSTALL_ANGLE, AT+SAVE_ALL), and
+// here it is detected by its NAVI frames and only read. The LG290P side (GGA, RMC, GST at 5 Hz on UART3) is set up as
+// on the Facet FP.
+class IM19ListenOnly : public IM19
+{
+  public:
+    void attachSerial(HardwareSerial &serialPort)
+    {
+        _hwSerialPort = &serialPort;
+    }
+};
+
+static bool tiltListenOnly()
+{
+    return (productVariant == RTK_POSTCARD);
+}
+
+// Listen for NAVI frames for up to maxMs; true once a valid frame has been parsed
+static bool tiltListenForNavi(IM19 *sensor, uint32_t maxMs)
+{
+    uint32_t start = millis();
+    while ((millis() - start) < maxMs)
+    {
+        sensor->update();
+        if (sensor->getNaviAge() < (millis() - start)) // A frame arrived after we started listening
+            return (true);
+        delay(10);
+    }
+    return (false);
+}
+
 uint32_t tiltCrc;
 float previousGGAUndulation = -9999.9999;
 
@@ -298,6 +332,25 @@ void beginTilt()
     beginUart2Serial();
     if (SerialForTilt == nullptr)
         return;
+
+    if (tiltListenOnly())
+    {
+        IM19ListenOnly *listener = new IM19ListenOnly();
+        tiltSensor = listener;
+        if (settings.enableImuDebug == true)
+            tiltSensor->enableDebugging(); // Print all debug to Serial
+        listener->attachSerial(*SerialForTilt);
+        if (tiltListenForNavi(tiltSensor, 3000) == false)
+        {
+            systemPrintln("IM19: no NAVI data on IO8. Check the wiring and AT+NAVI_OUTPUT=UART1,ON");
+            tiltStop(); // Stop serial inteface. Mark IMU offline.
+            return;
+        }
+        snprintf(imuFirmwareVersionStr, sizeof(imuFirmwareVersionStr), "listen-only");
+        systemPrintln("IM19 online (listen-only, configured over its USB-C)");
+        online.imu_im19 = true;
+        return;
+    }
 
     tiltSensor = new IM19();
     if (settings.enableImuDebug == true)
@@ -978,6 +1031,27 @@ void tiltDetect()
 
     systemPrintln("Beginning tilt autodetection");
     displayTiltAutodetect(0);
+
+    if (tiltListenOnly())
+    {
+        // RFSAT V8: listen on IO8 for NAVI frames; nothing is sent to the IM19
+        IM19ListenOnly listener;
+        HardwareSerial SerialTiltTest(2);
+        SerialTiltTest.begin(115200, SERIAL_8N1, pin_IMU_RX, pin_IMU_TX);
+        listener.attachSerial(SerialTiltTest);
+        delay(2500); // The IM19 needs ~2.5 s from power up
+        if (tiltListenForNavi(&listener, 3000) == true)
+        {
+            present.imu_im19 = true; // Allow tiltUpdate() to run
+            settings.detectedTilt = true;
+            gnssConfigure(GNSS_CONFIG_TILT); // Request receiver to use new settings
+        }
+        SerialTiltTest.end(); // Release UART2 for reuse
+        systemPrintln(settings.detectedTilt ? "Tilt sensor detected (listen-only)" : "Tilt sensor not detected");
+        settings.testedTilt = true; // Record this test so we don't do it again
+        recordSystemSettings();
+        return;
+    }
 
     // Locally instantiate the library and hardware so it will release on exit
     IM19 *tiltSensor;

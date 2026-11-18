@@ -559,6 +559,12 @@ void beginBoard()
 
         pin_gpioExpanderInterrupt = 14; // Pin 'AOI' (Analog Output Input) on Portability Shield
 
+        // RFSAT V8: optional SparkFun IM19 breakout. Its UART1 TX (binary NAVI) is wired to the 'ISR' PTH pin
+        // (LG-EVENT, ESP32 IO8; the LG290P EVENT input is not used). No ESP32 pin is free for TX, so the IM19 is
+        // listen-only: it is configured once over its own USB-C (see Tilt.ino and RFSAT.md).
+        pin_IMU_RX = 8;
+        pin_IMU_TX = PIN_UNDEFINED;
+
         pin_bluetoothStatusLED = 4; // Blue LED
         pin_gnssStatusLED = 0;      // Green LED
 

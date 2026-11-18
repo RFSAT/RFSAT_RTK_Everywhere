@@ -79,6 +79,10 @@ jobs:
           [ -f RTK_Everywhere.ino.merged.bin ] && mv RTK_Everywhere.ino.merged.bin ${TAG}_merged_V4.bin || true
           mv RTK_Everywhere.ino.bootloader.bin RTK_Everywhere_bootloader_V4.bin
           mv RTK_Everywhere.ino.partitions.bin RTK_Everywhere_partitions_V4.bin
+          # V8 (V4 + SparkFun IM19 breakout, listen-only) runs the same firmware: copies named _V8
+          for f in ${TAG}_V4.bin ${TAG}_merged_V4.bin RTK_Everywhere_bootloader_V4.bin RTK_Everywhere_partitions_V4.bin; do
+            [ -f "$f" ] && cp "$f" "${f%_V4.bin}_V8.bin"
+          done
 
       - uses: actions/upload-artifact@v4
         with:
@@ -87,6 +91,7 @@ jobs:
             Firmware/build/${{ env.TAG }}*.bin
             Firmware/build/${{ env.TAG }}_V4.elf
             Firmware/build/RTK_Everywhere_*_V4.bin
+            Firmware/build/RTK_Everywhere_*_V8.bin
 
       # Tags rfsat-v<upstream major>.<minor>-r<n> (e.g. rfsat-v3.4-r1) publish a GitHub pre-release
       - name: Release
@@ -100,3 +105,4 @@ jobs:
           files: |
             Firmware/build/${{ env.TAG }}*.bin
             Firmware/build/RTK_Everywhere_*_V4.bin
+            Firmware/build/RTK_Everywhere_*_V8.bin

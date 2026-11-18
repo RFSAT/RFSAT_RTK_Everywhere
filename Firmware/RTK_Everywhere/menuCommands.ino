@@ -1904,7 +1904,8 @@ void createSettingsString(char *newSettings)
 
     // Pass extra setting so that web config can show/hide tilt enable check box
     // We can't depend on enableTiltCompensation setting because all FP platforms transmit it.
-    if (variantHousingProperties->tiltPossible == true)
+    if (variantHousingProperties->tiltPossible == true &&
+        (productVariant != RTK_POSTCARD || present.imu_im19 == true)) // RFSAT V8: Postcard only with an IM19
         stringRecord(newSettings, "hasTilt", "1");
 
     char apDeviceBTID[30];
