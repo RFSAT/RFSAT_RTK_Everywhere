@@ -253,7 +253,7 @@ const productHousingProperties productHousingPropertiesTable[] =
     {RTK_HOUSING_EVK,       42.0,   false,  "", "", ""}, // Default to NGS calibrated SPK6615H APC, average of L1/L2
     {RTK_HOUSING_FACET,     68.5,   false,  "", "", ""}, // Default to L-Band element APC, average of L1/L2
     {RTK_HOUSING_FP,        58.3,   true,   "LEVER_ARM2=0.03391,0.00272,0.02370", "INSTALL_ANGLE=0,180,0", "GNSS_CARD=OEM"}, // NGS calibrated average of L1/L2
-    {RTK_HOUSING_POSTCARD,  37.5,   true,   "", "", "GNSS_CARD=OEM"}, // APC of SPK-6E helical L1/L2/L5 antenna. RFSAT V8: optional IM19 breakout, listen-only (see Tilt.ino)
+    {RTK_HOUSING_POSTCARD,  37.5,   true,   "", "", "GNSS_CARD=OEM"}, // APC of SPK-6E helical L1/L2/L5 antenna. RFSAT V7: optional IM19 breakout, listen-only (see Tilt.ino)
     {RTK_HOUSING_TORCH,     129.0,  true,   "LEVER_ARM=-0.00678,-0.01073,-0.0314", "", "GNSS_CARD=UNICORE"}, // Default to Torch helical APC, NGS calibrated average of L1/L2
     {RTK_HOUSING_TX2,       129.0,  false,  "", "", ""}, // Default to Torch helical APC, NGS calibrated average of L1/L2
     {RTK_HOUSING_MAX_NONE,  0.0,    false,  "", "", ""},

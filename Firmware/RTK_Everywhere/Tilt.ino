@@ -39,7 +39,7 @@ Tilt.ino
 
 IM19 * tiltSensor;
 
-// RFSAT V8 (RTK Postcard + Portability Shield + SparkFun IM19 breakout): the IM19 is listen-only. Its NAVI output
+// RFSAT V7 (RTK Postcard + Portability Shield + SparkFun IM19 breakout): the IM19 is listen-only. Its NAVI output
 // (UART1 TX) reaches ESP32 IO8 through the Postcard's 'ISR' PTH pin; no ESP32 pin is free to send it commands.
 // The IM19 is therefore configured once from a PC over its own USB-C (AT+GNSS_CARD=OEM, AT+GNSS_PORT=PHYSICAL_UART2,
 // AT+NAVI_OUTPUT=UART1,ON, AT+SET_PPS_EDGE=RISING, AT+LEVER_ARM, AT+CLUB_VECTOR, AT+INSTALL_ANGLE, AT+SAVE_ALL), and
@@ -1034,7 +1034,7 @@ void tiltDetect()
 
     if (tiltListenOnly())
     {
-        // RFSAT V8: listen on IO8 for NAVI frames; nothing is sent to the IM19
+        // RFSAT V7: listen on IO8 for NAVI frames; nothing is sent to the IM19
         IM19ListenOnly listener;
         HardwareSerial SerialTiltTest(2);
         SerialTiltTest.begin(115200, SERIAL_8N1, pin_IMU_RX, pin_IMU_TX);
